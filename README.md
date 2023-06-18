@@ -52,7 +52,7 @@ Run the compiled program:
 ### Example
 1.This example demonstrates how to use the stringRotateLeft function to rotate the characters in a string to the left by a certain number of positions:
 
-    ```sh
+    ```c
     const char *original = "abcdefg";
     char *rotated = stringRotateLeft(original, 2);
     
