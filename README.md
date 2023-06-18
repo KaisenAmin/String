@@ -203,5 +203,31 @@ Run the compiled program:
     // Freeing the allocated memory
     free(shuffled);
     ```
+
+7. stringInsert, stringRepeat, stringToInteger, stringToFloat:
+
+   ```c
+    const char *myString = "hello world, hello!";
+    const char *subString = "hello";
+    const char *insertString = "INSERTED ";
+    
+    printf("%s\n", myString);
+    printf("Count of '%s' in '%s': %d\n", subString, myString, stringCountSubstrings(myString, subString));
+
+    char *newString = stringInsert(myString, insertString, 6);
+    printf("String after insertion: %s\n", newString);
+    free(newString);
+
+    char *repeatedString = stringRepeat(subString, 3);
+    printf("Repeated string: %s\n", repeatedString);
+    free(repeatedString);
+
+    const char *intString = "-12345";
+    printf("String to integer: %d\n", stringToInteger(intString));
+
+    const char *floatStr = "3.14159";
+    float floatValue = stringToFloat(floatStr);
+    printf("Converted string \"%s\" to float: %f\n", floatStr, floatValue);
+    ```
    
     
