@@ -268,4 +268,40 @@ Run the compiled program:
     free(kebabCase);
     free(originalSen);
     ```
+
+10. stringCapitalize, stringJoin, stringSplit:
+
+    ```c
+    const char *str1 = "hello world! this is an example string.";
+    char *capitalized = stringCapitalize(str1);
+    
+    printf("Original string: %s\n", str1);
+    printf("Capitalized string: %s\n\n", capitalized);
+    
+    free(capitalized); // Don't forget to free memory
+
+    // Example using stringSplit
+    const char *str2 = "apple,banana,orange,grape";
+    int numTokens;
+    char **tokens = stringSplit(str2, ',', &numTokens);
+    printf("Split string into tokens:\n");
+    
+    for (int i = 0; i < numTokens; i++) 
+    {
+        printf("%s\n", tokens[i]);
+        free(tokens[i]); // Free each token
+    }
+    
+    free(tokens); // Free the array holding tokens
+    printf("\n");
+
+    // Example using stringJoin
+    char *parts[] = {"This", "is", "a", "joined", "string"}; // Without const
+    char *joined = stringJoin(parts, 5, " ");
+    
+    printf("Joined string: %s\n\n", joined);
+    
+    free(joined);// Don't forget to free memory
+    ```
+
     
