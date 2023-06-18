@@ -63,5 +63,42 @@ Run the compiled program:
         free(rotated);
     }
     ```
+2. These are some basic functions for strings:
+
+   ```c
+    const char* myName = "   Hello W156orld\nam36in";
+
+    printf("The length of myName is %d\n", stringLength(myName));
+    printf("The number of words in myName is %d\n", stringWordCount(myName));
+    printf("The number of digits in myName is %d\n", stringDigitCount(myName));
+    printf("The number of '6' in myName is %d\n", stringCharCount(myName, '6'));
+    printf("The position of 'W' in myName is %d\n", stringFindChar(myName, 'W'));
+    printf("The Position of 'W156' in myName is %d\n", stringFindString(myName, "W156"));
+    printf("The String 'Hello' is %d\n", stringCompare(myName, "Hello W156orld\nam36in"));
+
+    char* newName = (char*)malloc(stringLength(myName) + 1);
+    stringCopy(newName, myName);
+
+    printf("Copy myName to newName: %s\n", newName);
+    printf("The reverse of this string is: %s\n", stringReverse(newName));
+    printf("The upper case of this string is: %s\n", stringToUpper(newName));
+    printf("The lower case of this string is: %s\n", stringToLower(newName));
+    printf("The trim of this string is: %s\n", stringTrim(newName));
+    printf("isWhiteSpace: %d\n", isWhiteSpace(' '));
+    printf("isDigit: %d\n", isDigit('1'));
+    printf("isLetter: %d\n", isLetter('a'));
+    printf("isAlphaNumeric: %d\n", isAlphaNumeric('a'));
+    printf("isUpperCase: %d\n", isUpperCase('A'));
+    printf("isLowerCase: %d\n", isLowerCase('A'));
+    printf("isPunctuation: %d\n", isPunctuation('.'));
+    printf("isSpecialChar: %d\n", isSpecialChar('~'));
+    printf("isVowel: %d\n", isVowel('f'));
+    printf("isConsonant: %d\n", isConsonant('f'));
+    printf("isPalindrome: %d\n", isPalindrome("abbd"));
+    printf("isAnaGram: %d\n", isAnagram("abbd", "dbba"));
+    printf("isSubString 'Hello' of %d\n", isSubString(myName, "Hello0"));
+    printf("isRotation: %d\n", isRotation("Hello", "lloHe"));
+    printf("isRotationOfPalindrome: %d\n", isRotationOfPalindrome("abba"));
+    ```
 
     
