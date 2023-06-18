@@ -62,6 +62,16 @@ Run the compiled program:
         printf("Rotated string (left by 2): %s\n", rotated);
         free(rotated);
     }
+
+    const char *originalRight = "abcdefg";
+    char *rotatedRight = stringRotateRight(original, 2);
+
+    if (rotatedRight) 
+    {
+        printf("Original string: %s\n", originalRight);
+        printf("Rotated string (right by 2): %s\n", rotatedRight);
+        free(rotatedRight);
+    }
     ```
 2. These are some basic functions for strings:
 
