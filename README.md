@@ -21,7 +21,7 @@ CStringEnhancer is a small C library that provides additional string manipulatio
 1. Clone the repository:
 
     ```sh
-    git clone https://github.com/yourusername/CStringEnhancer.git
+    git clone https://github.com/KaisenAmin/CStringEnhancer.git
     ```
 
 2. Change to the project directory:
