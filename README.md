@@ -47,3 +47,18 @@ Run the compiled program:
 
 ```sh
 ./CStringEnhancer
+
+## Example 
+
+1. rotate String 
+    ```
+    const char *original = "abcdefg";
+    char *rotated = stringRotateLeft(original, 2);
+    
+    if (rotated) 
+    {
+        printf("Original string: %s\n", original);
+        printf("Rotated string (left by 2): %s\n", rotated);
+        free(rotated);
+    }
+    ```
