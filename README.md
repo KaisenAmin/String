@@ -266,5 +266,6 @@ Run the compiled program:
     free(snakeCase);
     free(pascalCase);
     free(kebabCase);
+    free(originalSen);
     ```
     
