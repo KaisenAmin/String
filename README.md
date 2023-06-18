@@ -8,6 +8,11 @@ CStringEnhancer is a small C library that provides additional string manipulatio
 - Left align a string with a custom padding character.
 - Right align a string with a custom padding character.
 - Shuffle the characters in a string.
+- String Length Calculation
+- String Copy
+- Check if a string is Palindrome
+- Check if two strings are Anagrams
+- Check if a string is a rotation of another
 - ... [Any other features you add]
 
 ## Getting Started
