@@ -177,6 +177,21 @@ Run the compiled program:
     free(centered);
     free(ljust);
     free(rjust);
+    free(binary);
+    free(original);
+    free(randomStr);
+    ```
+
+6. stringShuffle:
+
+   ```c
+    const char *original = "hello";
+    char *shuffled = stringShuffle(original);
+    printf("Original string: %s\n", original);
+    printf("Shuffled string: %s\n", shuffled);
+
+    // Freeing the allocated memory
+    free(shuffled);
     ```
    
     
