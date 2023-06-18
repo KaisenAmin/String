@@ -119,5 +119,32 @@ Run the compiled program:
     free(trimmedLeft);
     free(trimmedRight);
     ```
+4. stringReplaceAll, stringSwapCase, stringTitleCase, stringIsEmpty
+
+   ```c
+    const char *example1 = "ThIs Is a TeSt StrInG";
+    char *swappedCase = stringSwapCase(example1);
+    printf("Swap Case: %s\n", swappedCase);
+    free(swappedCase);
+
+    // Example for stringTitleCase
+    const char *example2 = "this is a title case example";
+    char *titleCase = stringTitleCase(example2);
+    printf("Title Case: %s\n", titleCase);
+    free(titleCase);
+
+    // Example for stringReplaceAll
+    const char *originalString = "This is an example string. Let's replace all occurrences of 'is' with 'IS'";
+    char *replaced = stringReplaceAll(originalString, "is", "IS");
+    printf("Replaced String: %s\n", replaced);
+    free(replaced);
+
+    const char *emptyString = "";
+    const char *nonEmptyString = "hello@example.com";
+
+
+    printf("Is empty string empty? %s\n", stringIsEmpty(emptyString) ? "Yes" : "No");
+    printf("Is non-empty string empty? %s\n", stringIsEmpty(nonEmptyString) ? "Yes" : "No");
+    ```
 
     
