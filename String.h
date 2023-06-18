@@ -99,6 +99,8 @@ char* stringHexToBinary(const char *hexStr);
 char* stringOctToBinary(const char *octStr);
 char* stringMap(const char *str, char (*function)(char));
 char* stringFilter(const char *str, bool (*function)(char));
+char* stringExpandTabs(const char *str, int tabSize);
+char* stringSort(const char *str);
 
 char** stringSplit(const char *str, char delimiter, int *numTokens);
 

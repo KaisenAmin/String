@@ -12,6 +12,7 @@ CStringEnhancer is a small C library that provides additional string manipulatio
 - String Manipulation:
   - Shuffle the characters in a string.
   - Reverse a string.
+  - Sort a string.
   - Convert a string to uppercase.
   - Convert a string to lowercase.
   - Trim leading and trailing whitespace from a string.
@@ -19,6 +20,7 @@ CStringEnhancer is a small C library that provides additional string manipulatio
   - Replace substrings in a string.
   - Rotate the characters in a string.
   - Transform a string to camel case, snake case, pascal case, or kebab case.
+  - Change size of tab with stringExpandTabs.
 
 - String Information:
   - Calculate the length of a string.
@@ -40,18 +42,18 @@ CStringEnhancer is a small C library that provides additional string manipulatio
 - String Conversion:
   - Convert a string to an integer.
   - Convert a string to a floating-point number.
-  - Convert a string to binary 
-  - Convert a binary string to to text string 
-  - Convert a string to Hex
-  - Convert a string to Oct
-  - Convert a stringHex to Binary format
-  - Convert a stringOct to Binary format
+  - Convert a string to binary. 
+  - Convert a binary string to to text string .
+  - Convert a string to Hex.
+  - Convert a string to Oct.
+  - Convert a stringHex to Binary format.
+  - Convert a stringOct to Binary format.
 
 - Additional String Functions:
   - Perform string mapping, applying a function to each character in a string.
   - Perform string filtering, selecting characters from a string based on a condition.
   - Split a string into an array of substrings based on a delimiter.
-  - encode and decode string in Base64
+  - encode and decode string in Base64.
 
 - Character Validation:
   - Check if a character is whitespace.
@@ -504,4 +506,62 @@ Run the compiled program:
         return 0;
     }
     ```
+
+16. stringExpandTabs:
+
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "String.h"
+
+
+    int main(int argc, char **argv)
+    {
+            // Example string with tabs
+        const char *originalString = "This\tis\ta\tstring\twith\ttabs";
+
+        // Number of spaces each tab should be expanded to
+        int tabSize = 8;
+
+        // Expand the tabs in the original string
+        char *expandedString = stringExpandTabs(originalString, tabSize);
+
+        // Print the expanded string
+        printf("Original String: %s\n", originalString);
+        printf("Expanded String: %s\n", expandedString);
+
+        // Free the dynamically allocated memory
+        free(expandedString);
+
+        getchar();
+        return 0;
+    }
+    ```
     
+17. stringSort:
+
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "String.h"
+
+
+    int main(int argc, char **argv)
+    {
+        const char *originalString = "bd156caef";
+
+        // Sort the characters in the original string
+        char *sortedString = stringSort(originalString);
+
+        // Print the sorted string
+        printf("Original String: %s\n", originalString);
+        printf("Sorted String: %s\n", sortedString);
+
+        // Free the dynamically allocated memory
+        free(sortedString);
+
+        getchar();
+        return 0;
+    }
+
+    ```

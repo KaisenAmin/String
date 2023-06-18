@@ -1836,6 +1836,44 @@ char* stringFilter(const char *str, bool (*condition)(char))
     return new_str;
 }
 
+char* stringExpandTabs(const char *str, int tabSize) 
+{
+    if (str == NULL || tabSize < 0) 
+    {
+        return NULL;
+    }
+
+    int expandedLength = 0;
+    for (int i = 0; str[i] != '\0'; i++) 
+    {
+        if (str[i] == '\t') {
+            expandedLength += tabSize;
+        } else {
+            expandedLength++;
+        }
+    }
+
+    char *expandedStr = (char*)malloc(expandedLength + 1);
+    int index = 0;
+
+    for (int i = 0; str[i] != '\0'; i++) 
+    {
+        if (str[i] == '\t') {
+            for (int j = 0; j < tabSize; j++) 
+            {
+                expandedStr[index++] = ' ';
+            }
+        } 
+        else 
+        {
+            expandedStr[index++] = str[i];
+        }
+    }
+    expandedStr[index] = '\0';
+    
+    return expandedStr;
+}
+
 void stringEncodeB64(const char *input, char *output) 
 {
     int i, j, padding;
@@ -1906,4 +1944,40 @@ void stringDecodeB64(const char *encoded, char *decoded_string)
     }
 
     decoded_string[k] = '\0';
+}
+
+char* stringSort(const char *str) 
+{
+    if (str == NULL) 
+    {
+        return NULL;
+    }
+    
+    int length = stringLength(str);
+    
+    // Allocate memory for the sorted string
+    char *sortedStr = (char*) malloc(length + 1);
+    
+    // Copy the original string to sortedStr
+    stringCopy(sortedStr, str);
+    
+    // Sort the characters in sortedStr using Bubble Sort
+    for (int i = 0; i < length - 1; i++) 
+    {
+        for (int j = 0; j < length - i - 1; j++) 
+        {
+            if (sortedStr[j] > sortedStr[j + 1]) 
+            {
+                // Swap sortedStr[j] and sortedStr[j+1]
+                char temp = sortedStr[j];
+                sortedStr[j] = sortedStr[j + 1];
+                sortedStr[j + 1] = temp;
+            }
+        }
+    }
+    
+    // Null-terminate the sorted string
+    sortedStr[length] = '\0';
+    
+    return sortedStr;
 }

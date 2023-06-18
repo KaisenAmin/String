@@ -5,21 +5,17 @@
 
 int main(int argc, char **argv)
 {
-    const char *hexString = "1A3F";
-    const char *octString = "1507";
+    const char *originalString = "bd156caef";
 
-    char *binaryFromHex = stringHexToBinary(hexString);
-    char *binaryFromOct = stringOctToBinary(octString);
+    // Sort the characters in the original string
+    char *sortedString = stringSort(originalString);
 
-    printf("Hexadecimal String: %s\n", hexString);
-    printf("Binary Representation from Hex: %s\n", binaryFromHex);
-
-    printf("Octal String: %s\n", octString);
-    printf("Binary Representation from Octal: %s\n", binaryFromOct);
+    // Print the sorted string
+    printf("Original String: %s\n", originalString);
+    printf("Sorted String: %s\n", sortedString);
 
     // Free the dynamically allocated memory
-    free(binaryFromHex);
-    free(binaryFromOct);
+    free(sortedString);
 
     getchar();
     return 0;
