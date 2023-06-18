@@ -119,7 +119,8 @@ Run the compiled program:
     free(trimmedLeft);
     free(trimmedRight);
     ```
-4. stringReplaceAll, stringSwapCase, stringTitleCase, stringIsEmpty
+    
+4. stringReplaceAll, stringSwapCase, stringTitleCase, stringIsEmpty:
 
    ```c
     const char *example1 = "ThIs Is a TeSt StrInG";
@@ -146,5 +147,36 @@ Run the compiled program:
     printf("Is empty string empty? %s\n", stringIsEmpty(emptyString) ? "Yes" : "No");
     printf("Is non-empty string empty? %s\n", stringIsEmpty(nonEmptyString) ? "Yes" : "No");
     ```
+   
+5. stringToBinary, stringFromBinary, stringRandom, stringCenter, stringLjust, stringRjust:
 
+   ```c
+    char *binary = stringToBinary("ABCD");
+    printf("Binary representation of 'ABCD': %s\n", binary);
+
+    // Testing the stringFromBinary function
+    char *original = stringFromBinary(binary);
+    printf("Original string from binary: %s\n", original);
+
+    // Testing the stringRandom function
+    char *randomStr = stringRandom(10);
+    printf("Random string: %s\n", randomStr);
+
+    char *centered = stringCenter("hello", 20, '-');
+    printf("Centered string: %s\n", centered);
+
+    // Testing the stringLjust function
+    char *ljust = stringLjust("hello", 20, '-');
+    printf("Left-justified string: %s\n", ljust);
+
+    // Testing the stringRjust function
+    char *rjust = stringRjust("hello", 20, '-');
+    printf("Right-justified string: %s\n", rjust);
+
+    // Freeing the allocated memory
+    free(centered);
+    free(ljust);
+    free(rjust);
+    ```
+   
     
