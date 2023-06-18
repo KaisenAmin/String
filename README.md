@@ -229,5 +229,22 @@ Run the compiled program:
     float floatValue = stringToFloat(floatStr);
     printf("Converted string \"%s\" to float: %f\n", floatStr, floatValue);
     ```
-   
+
+8. integerToString, floatToString:
+
+   ```c
+    int intValue = -12345;
+    char *intStr = integerToString(intValue);
+    printf("Converted integer %d to string: \"%s\"\n", intValue, intStr);
+
+    // Example using floatToString
+    float pi = 3.1415926535;
+    int precision = 6;
+    char *piStr = floatToString(pi, precision);
+    printf("Converted float %f to string with precision %d: \"%s\"\n", pi, precision, piStr);
+
+    // Free the dynamically allocated memory
+    free(intStr);
+    free(piStr);
+    ```
     
