@@ -1684,6 +1684,47 @@ char* stringShuffle(const char *str)
     return shuffled;
 }
 
+char* stringToHex(const char *str) 
+{
+    if (!str) 
+    {
+        return NULL;
+    }
+
+    int length = stringLength(str);
+    char *hexString = malloc(length * 2 + 1);
+
+    for (int i = 0; i < length; i++) 
+    {
+        sprintf(hexString + i * 2, "%02x", (unsigned char)str[i]);
+    }
+
+    hexString[length * 2] = '\0';
+    return hexString;
+}
+
+char* stringToOct(const char *str) 
+{
+    if (!str) 
+    {
+        return NULL;
+    }
+
+    int length = stringLength(str);
+    char *octString = malloc(length * 4 + 1);
+    char buffer[4];
+
+    octString[0] = '\0';
+
+    for (int i = 0; i < length; i++) 
+    {
+        sprintf(buffer, "%03o", (unsigned char)str[i]);
+        strcat(octString, buffer);
+    }
+
+    return octString;
+}
+
 char* stringMap(const char *str, char (*function)(char)) 
 {
     if (!str || !function) 

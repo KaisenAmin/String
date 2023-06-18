@@ -5,17 +5,18 @@
 
 int main(int argc, char **argv)
 {
-    const char *original = "Hello, World!";
-    char encoded[256];
-    char decoded[256];
+    const char *exampleString = "Hello";
 
-    // Encode the string
-    stringEncodeB64(original, encoded);
-    printf("Encoded string: %s\n", encoded);
+    char *hexRepresentation = stringToHex(exampleString);
+    char *octRepresentation = stringToOct(exampleString);
 
-    // Decode the string
-    stringDecodeB64(encoded, decoded);
-    printf("Decoded string: %s\n", decoded);
+    printf("Original String: %s\n", exampleString);
+    printf("Hexa decimal Representation: %s\n", hexRepresentation);
+    printf("Octal Representation: %s\n", octRepresentation);
+
+    // Free the dynamically allocated memory
+    free(hexRepresentation);
+    free(octRepresentation);
 
     getchar();
     return 0;

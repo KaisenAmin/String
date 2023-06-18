@@ -40,6 +40,10 @@ CStringEnhancer is a small C library that provides additional string manipulatio
 - String Conversion:
   - Convert a string to an integer.
   - Convert a string to a floating-point number.
+  - Convert a string to binary 
+  - Convert a binary string to to text string 
+  - Convert a string to Hex
+  - Convert a string to Oct
 
 - Additional String Functions:
   - Perform string mapping, applying a function to each character in a string.
@@ -434,6 +438,34 @@ Run the compiled program:
         // Decode the string
         stringDecodeB64(encoded, decoded);
         printf("Decoded string: %s\n", decoded);
+
+        getchar();
+        return 0;
+    }
+    ```
+
+14. stringToHex, stringToOct:
+
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "String.h"
+
+
+    int main(int argc, char **argv)
+    {
+        const char *exampleString = "Hello";
+
+        char *hexRepresentation = stringToHex(exampleString);
+        char *octRepresentation = stringToOct(exampleString);
+
+        printf("Original String: %s\n", exampleString);
+        printf("Hexa decimal Representation: %s\n", hexRepresentation);
+        printf("Octal Representation: %s\n", octRepresentation);
+
+        // Free the dynamically allocated memory
+        free(hexRepresentation);
+        free(octRepresentation);
 
         getchar();
         return 0;

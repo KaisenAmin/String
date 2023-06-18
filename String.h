@@ -8,8 +8,6 @@
 #include <stdint.h>
 #include <time.h>
 
-
-
 bool isWhiteSpace(char c);
 bool isDigit(char c);
 bool isLetter(char c);
@@ -95,6 +93,8 @@ char* stringCenter(const char *str, int width, char fillChar);
 char* stringLjust(const char *str, int width, char fillChar);
 char* stringRjust(const char *str, int width, char fillChar);
 char* stringShuffle(const char *str);
+char* stringToHex(const char *str); 
+char* stringToOct(const char *str);
 char* stringMap(const char *str, char (*function)(char));
 char* stringFilter(const char *str, bool (*function)(char));
 
