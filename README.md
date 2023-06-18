@@ -49,7 +49,7 @@ Run the compiled program:
 ./CStringEnhancer
 ```
 
-### Example
+## Example
 1.This example demonstrates how to use the stringRotateLeft function to rotate the characters in a string to the left by a certain number of positions.
     ```
     const char *original = "abcdefg";
