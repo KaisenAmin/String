@@ -1725,6 +1725,75 @@ char* stringToOct(const char *str)
     return octString;
 }
 
+char* stringHexToBinary(const char *hexStr)
+{
+    if (!hexStr) 
+    {
+        return NULL;
+    }
+
+    const char *hexToBin[] = {"0000", "0001", "0010", "0011", "0100", "0101", "0110", "0111",
+                              "1000", "1001", "1010", "1011", "1100", "1101", "1110", "1111"};
+    
+    int length = strlen(hexStr);
+    char *binary = (char *) malloc(length * 4 + 1);
+    binary[0] = '\0';
+    
+    for (int i = 0; i < length; i++) 
+    {
+        int value;
+        if ('0' <= hexStr[i] && hexStr[i] <= '9') 
+        {
+            value = hexStr[i] - '0';
+        } else if ('a' <= hexStr[i] && hexStr[i] <= 'f') 
+        {
+            value = hexStr[i] - 'a' + 10;
+        } else if ('A' <= hexStr[i] && hexStr[i] <= 'F') 
+        {
+            value = hexStr[i] - 'A' + 10;
+        } 
+        else 
+        {
+            free(binary);
+            return NULL; // Invalid character in hex string
+        }
+        strcat(binary, hexToBin[value]);
+    }
+    
+    return binary;
+}
+
+char* stringOctToBinary(const char *octStr) 
+{
+    if (!octStr) 
+    {
+        return NULL;
+    }
+
+    const char *octToBin[] = {"000", "001", "010", "011", "100", "101", "110", "111"};
+    
+    int length = strlen(octStr);
+    char *binary = (char *) malloc(length * 3 + 1);
+    binary[0] = '\0';
+    
+    for (int i = 0; i < length; i++) 
+    {
+        int value;
+        if ('0' <= octStr[i] && octStr[i] <= '7') 
+        {
+            value = octStr[i] - '0';
+        } 
+        else 
+        {
+            free(binary);
+            return NULL; // Invalid character in octal string
+        }
+        strcat(binary, octToBin[value]);
+    }
+    
+    return binary;
+}
+
 char* stringMap(const char *str, char (*function)(char)) 
 {
     if (!str || !function) 

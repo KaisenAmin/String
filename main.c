@@ -5,18 +5,21 @@
 
 int main(int argc, char **argv)
 {
-    const char *exampleString = "Hello";
+    const char *hexString = "1A3F";
+    const char *octString = "1507";
 
-    char *hexRepresentation = stringToHex(exampleString);
-    char *octRepresentation = stringToOct(exampleString);
+    char *binaryFromHex = stringHexToBinary(hexString);
+    char *binaryFromOct = stringOctToBinary(octString);
 
-    printf("Original String: %s\n", exampleString);
-    printf("Hexa decimal Representation: %s\n", hexRepresentation);
-    printf("Octal Representation: %s\n", octRepresentation);
+    printf("Hexadecimal String: %s\n", hexString);
+    printf("Binary Representation from Hex: %s\n", binaryFromHex);
+
+    printf("Octal String: %s\n", octString);
+    printf("Binary Representation from Octal: %s\n", binaryFromOct);
 
     // Free the dynamically allocated memory
-    free(hexRepresentation);
-    free(octRepresentation);
+    free(binaryFromHex);
+    free(binaryFromOct);
 
     getchar();
     return 0;
