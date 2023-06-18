@@ -1,5 +1,6 @@
 #include "String.h"
 
+char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 bool isWhiteSpace(char c) 
 {
@@ -1723,4 +1724,76 @@ char* stringFilter(const char *str, bool (*condition)(char))
     
     new_str[j] = '\0';
     return new_str;
+}
+
+void stringEncodeB64(const char *input, char *output) 
+{
+    int i, j, padding;
+    uint32_t len = strlen(input);
+
+    // Determine padding size
+    padding = len % 3 == 0 ? 0 : 3 - len % 3;
+
+    for (i = 0, j = 0; i < len; i += 3, j += 4) {
+        int a = input[i];
+        int b = i + 1 < len ? input[i + 1] : 0;
+        int c = i + 2 < len ? input[i + 2] : 0;
+
+        output[j] = base64_table[a >> 2];
+        output[j + 1] = base64_table[((a & 3) << 4) | (b >> 4)];
+        output[j + 2] = i + 1 < len ? base64_table[((b & 15) << 2) | (c >> 6)] : '=';
+        output[j + 3] = i + 2 < len ? base64_table[c & 63] : '=';
+    }
+
+    output[(len + padding) / 3 * 4] = '\0';
+}
+
+void stringDecodeB64(const char *encoded, char *decoded_string) 
+{
+    uint32_t len_str = strlen(encoded);
+    uint32_t k = 0;
+    uint32_t num = 0;
+    int count_bits = 0;
+
+    for (uint32_t i = 0; i < len_str; i += 4) 
+    {
+        num = 0, count_bits = 0;
+        for (int j = 0; j < 4; j++) {
+            // Make space for 6 bits.
+            if (encoded[i + j] != '=') 
+            {
+                num = num << 6;
+                count_bits += 6;
+            }
+
+            if (encoded[i + j] >= 'A' && encoded[i + j] <= 'Z')
+                num = num | (encoded[i + j] - 'A');
+
+            else if (encoded[i + j] >= 'a' && encoded[i + j] <= 'z')
+                num = num | (encoded[i + j] - 'a' + 26);
+
+            else if (encoded[i + j] >= '0' && encoded[i + j] <= '9')
+                num = num | (encoded[i + j] - '0' + 52);
+
+            else if (encoded[i + j] == '+')
+                num = num | 62;
+
+            else if (encoded[i + j] == '/')
+                num = num | 63;
+
+            else 
+            {
+                num = num >> 2;
+                count_bits -= 2;
+            }
+        }
+
+        while (count_bits != 0) 
+        {
+            count_bits -= 8;
+            decoded_string[k++] = (num >> count_bits) & 255;
+        }
+    }
+
+    decoded_string[k] = '\0';
 }

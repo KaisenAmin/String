@@ -45,6 +45,7 @@ CStringEnhancer is a small C library that provides additional string manipulatio
   - Perform string mapping, applying a function to each character in a string.
   - Perform string filtering, selecting characters from a string based on a condition.
   - Split a string into an array of substrings based on a delimiter.
+  - encode and decode string in Base64
 
 - Character Validation:
   - Check if a character is whitespace.
@@ -408,6 +409,32 @@ Run the compiled program:
         free(filtered);
 
         
+        getchar();
+        return 0;
+    }
+    ```
+
+13. stringEncodeB64, stringDecodeB64:
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "String.h"
+
+
+    int main(int argc, char **argv)
+    {
+        const char *original = "Hello, World!";
+        char encoded[256];
+        char decoded[256];
+
+        // Encode the string
+        stringEncodeB64(original, encoded);
+        printf("Encoded string: %s\n", encoded);
+
+        // Decode the string
+        stringDecodeB64(encoded, decoded);
+        printf("Decoded string: %s\n", decoded);
+
         getchar();
         return 0;
     }

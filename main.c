@@ -3,22 +3,20 @@
 #include "String.h"
 
 
-
-bool is_vowel(char c) 
-{
-    return isVowel(c);
-}
-
 int main(int argc, char **argv)
 {
-    const char *original = "hello world";
-    char *filtered = stringFilter(original, is_vowel);
+    const char *original = "Hello, World!";
+    char encoded[256];
+    char decoded[256];
 
-    printf("Filtered string: %s\n", filtered);
+    // Encode the string
+    stringEncodeB64(original, encoded);
+    printf("Encoded string: %s\n", encoded);
 
-    free(filtered);
+    // Decode the string
+    stringDecodeB64(encoded, decoded);
+    printf("Decoded string: %s\n", decoded);
 
-    
     getchar();
     return 0;
 }

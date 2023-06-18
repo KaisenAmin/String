@@ -1,11 +1,13 @@
-#ifndef KSTRING_H_
-#define KSTRING_H_
+#ifndef STRING_H_
+#define STRING_H_
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdint.h>
 #include <time.h>
+
 
 
 bool isWhiteSpace(char c);
@@ -97,5 +99,8 @@ char* stringMap(const char *str, char (*function)(char));
 char* stringFilter(const char *str, bool (*function)(char));
 
 char** stringSplit(const char *str, char delimiter, int *numTokens);
+
+void stringEncodeB64(const char *input, char *output);
+void stringDecodeB64(const char *encoded, char *decoded_string);
 
 #endif 
