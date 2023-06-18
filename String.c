@@ -1682,3 +1682,45 @@ char* stringShuffle(const char *str)
     
     return shuffled;
 }
+
+char* stringMap(const char *str, char (*function)(char)) 
+{
+    if (!str || !function) 
+    {
+        return NULL;
+    }
+
+    int len = stringLength(str);
+    char *new_str = (char *) malloc(len + 1);
+    
+    for (int i = 0; i < len; i++) 
+    {
+        new_str[i] = function(str[i]);
+    }
+    
+    new_str[len] = '\0';
+    return new_str;
+}
+
+char* stringFilter(const char *str, bool (*condition)(char)) 
+{
+    if (!str || !condition) 
+    {
+        return NULL;
+    }
+    
+    int len = stringLength(str);
+    char *new_str = (char *) malloc(len + 1);
+    
+    int j = 0;
+    for (int i = 0; i < len; i++) 
+    {
+        if (condition(str[i])) 
+        {
+            new_str[j++] = str[i];
+        }
+    }
+    
+    new_str[j] = '\0';
+    return new_str;
+}

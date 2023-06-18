@@ -93,6 +93,8 @@ char* stringCenter(const char *str, int width, char fillChar);
 char* stringLjust(const char *str, int width, char fillChar);
 char* stringRjust(const char *str, int width, char fillChar);
 char* stringShuffle(const char *str);
+char* stringMap(const char *str, char (*function)(char));
+char* stringFilter(const char *str, bool (*function)(char));
 
 char** stringSplit(const char *str, char delimiter, int *numTokens);
 

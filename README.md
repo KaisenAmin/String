@@ -304,4 +304,61 @@ Run the compiled program:
     free(joined);// Don't forget to free memory
     ```
 
+11. stringMap:
+
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "String.h"
+
+
+    char myToUpper(char c) 
+    {
+        return toUpperCase(c);
+    }
+
+    int main(int argc, char **argv)
+    {
+        const char *original = "hello";
+        char *mapped = stringMap(original, myToUpper);
+
+        printf("Mapped string: %s\n", mapped);
+
+        free(mapped);
+
+        getchar();
+        return 0;
+    }
+
+    ```
+
+12. stringFilter:
+
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "String.h"
+
+
+
+    bool is_vowel(char c) 
+    {
+        return isVowel(c);
+    }
+
+    int main(int argc, char **argv)
+    {
+        const char *original = "hello world";
+        char *filtered = stringFilter(original, is_vowel);
+
+        printf("Filtered string: %s\n", filtered);
+
+        free(filtered);
+
+        
+        getchar();
+        return 0;
+    }
+    ```
+
     
