@@ -4,16 +4,68 @@ CStringEnhancer is a small C library that provides additional string manipulatio
 
 ## Features
 
-- Center align a string with a custom padding character.
-- Left align a string with a custom padding character.
-- Right align a string with a custom padding character.
-- Shuffle the characters in a string.
-- String Length Calculation
-- String Copy
-- Check if a string is Palindrome
-- Check if two strings are Anagrams
-- Check if a string is a rotation of another
-- ... [Any other features you add]
+- String Alignment:
+  - Center align a string with a custom padding character.
+  - Left align a string with a custom padding character.
+  - Right align a string with a custom padding character.
+
+- String Manipulation:
+  - Shuffle the characters in a string.
+  - Reverse a string.
+  - Convert a string to uppercase.
+  - Convert a string to lowercase.
+  - Trim leading and trailing whitespace from a string.
+  - Concatenate two strings.
+  - Replace substrings in a string.
+  - Rotate the characters in a string.
+  - Transform a string to camel case, snake case, pascal case, or kebab case.
+
+- String Information:
+  - Calculate the length of a string.
+  - Count the number of words in a string.
+  - Count the number of digits in a string.
+  - Count the occurrences of a specific character in a string.
+  - Find the position of a character in a string.
+  - Find the position of a substring in a string.
+  - Compare two strings for equality.
+
+- String Validation:
+  - Check if a string is a palindrome.
+  - Check if two strings are anagrams.
+  - Check if a string is a rotation of another.
+  - Check if a string is a rotation of a palindrome.
+  - Check if a string is a rotation of an anagram.
+  - Check if a string is a rotation of a substring.
+
+- String Conversion:
+  - Convert a string to an integer.
+  - Convert a string to a floating-point number.
+
+- Additional String Functions:
+  - Perform string mapping, applying a function to each character in a string.
+  - Perform string filtering, selecting characters from a string based on a condition.
+  - Split a string into an array of substrings based on a delimiter.
+
+- Character Validation:
+  - Check if a character is whitespace.
+  - Check if a character is a digit.
+  - Check if a character is a letter.
+  - Check if a character is alphanumeric.
+  - Check if a character is uppercase.
+  - Check if a character is lowercase.
+  - Check if a character is a punctuation mark.
+  - Check if a character is a special character.
+  - Check if a character is a vowel.
+  - Check if a character is a consonant.
+
+- Case Conversion:
+  - Convert a character to uppercase.
+  - Convert a character to lowercase.
+
+- String Comparison:
+  - Compare two strings for equality.
+
+- These features aim to provide a comprehensive set of string manipulation functions to make working with strings in C more versatile and convenient.
 
 ## Getting Started
 
