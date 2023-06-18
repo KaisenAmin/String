@@ -247,4 +247,24 @@ Run the compiled program:
     free(intStr);
     free(piStr);
     ```
+9. stringCamelCase, stringSnakeCase, stringPascalCase, stringKebabCase:
+
+    ```c
+    const char *originalSen = "this is a sample string";
+    char *camelCase = stringCamelCase(originalSen);
+    char *snakeCase = stringSnakeCase(originalSen);
+    char *pascalCase = stringPascalCase(originalSen);
+    char *kebabCase = stringKebabCase(originalSen);
+
+    printf("Original: %s\n", originalSen);
+    printf("Camel Case: %s\n", camelCase);
+    printf("Snake Case: %s\n", snakeCase);
+    printf("Pascal Case: %s\n", pascalCase);
+    printf("Kebab Case: %s\n", kebabCase);
+
+    free(camelCase);
+    free(snakeCase);
+    free(pascalCase);
+    free(kebabCase);
+    ```
     
