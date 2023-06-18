@@ -47,7 +47,9 @@ Run the compiled program:
 
 ```sh
 ./CStringEnhancer
-Example
+```
+
+### Example
 Rotating a String
 This example demonstrates how to use the stringRotateLeft function to rotate the characters in a string to the left by a certain number of positions.
 
