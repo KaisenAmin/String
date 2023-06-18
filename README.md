@@ -50,19 +50,17 @@ Run the compiled program:
 ```
 
 ### Example
-Rotating a String
-This example demonstrates how to use the stringRotateLeft function to rotate the characters in a string to the left by a certain number of positions.
-
-c
-Copy code
-const char *original = "abcdefg";
-char *rotated = stringRotateLeft(original, 2);
-
-if (rotated) 
-{
-    printf("Original string: %s\n", original);
-    printf("Rotated string (left by 2): %s\n", rotated);
-    free(rotated);
-}
+1.This example demonstrates how to use the stringRotateLeft function to rotate the characters in a string to the left by a certain number of positions.
+    ```
+    const char *original = "abcdefg";
+    char *rotated = stringRotateLeft(original, 2);
+    
+    if (rotated) 
+    {
+        printf("Original string: %s\n", original);
+        printf("Rotated string (left by 2): %s\n", rotated);
+        free(rotated);
+    }
+    ```
 
     
