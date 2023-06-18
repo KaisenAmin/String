@@ -101,4 +101,23 @@ Run the compiled program:
     printf("isRotationOfPalindrome: %d\n", isRotationOfPalindrome("abba"));
     ```
 
+3. trim left and right:
+
+    ```c
+    const char *str1 = "    Hello, World!";
+    const char *str2 = "Goodbye, World!    ";
+
+    char *trimmedLeft = stringTrimLeft(str1);
+    char *trimmedRight = stringTrimRight(str2);
+
+    printf("Original String: '%s'\n", str1);
+    printf("Left Trimmed: '%s'\n", trimmedLeft);
+
+    printf("Original String: '%s'\n", str2);
+    printf("Right Trimmed: '%s'\n", trimmedRight);
+
+    free(trimmedLeft);
+    free(trimmedRight);
+    ```
+
     
