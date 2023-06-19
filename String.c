@@ -894,7 +894,7 @@ char* stringRepeat(const char *str, int times)
     for (int i = 0; i < times; i++) 
     {
         char *temp = stringConcat(result, str);
-        strcpy(result, temp);
+        stringCopy(result, temp);
         free(temp);
     }
     
