@@ -102,6 +102,13 @@ CStringEnhancer is a small C library that provides additional string manipulatio
     gcc main.c String.c -o CStringEnhancer
     ```
 
+4. Or use make, and run the tests:
+
+    ```sh
+    make
+    make test
+    ```
+
 ### Usage
 
 Run the compiled program:
@@ -327,7 +334,6 @@ Run the compiled program:
     free(snakeCase);
     free(pascalCase);
     free(kebabCase);
-    free(originalSen);
     ```
 
 10. stringCapitalize, stringJoin, stringSplit:
