@@ -1,93 +1,428 @@
 #include "String.h"
 
-char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+#include <limits.h>
+#include <stdint.h>
+#include <string.h>
+#include <time.h>
 
-bool isWhiteSpace(char c) 
+typedef enum
 {
-    return c == ' ' || c == '\t' || c == '\n';
+    ALIGN_LEFT,
+    ALIGN_CENTER,
+    ALIGN_RIGHT
+} Alignment;
+
+static const char base64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const char hexDigits[] = "0123456789abcdef";
+static const char *const hexToBin[] = {"0000", "0001", "0010", "0011", "0100", "0101", "0110", "0111",
+                                       "1000", "1001", "1010", "1011", "1100", "1101", "1110", "1111"};
+
+static char *allocString(size_t length)
+{
+    char *result = malloc(length + 1);
+    if (result)
+    {
+        result[length] = '\0';
+    }
+    return result;
 }
 
-bool isDigit(char c) 
+static char *copyRange(const char *src, size_t length)
+{
+    char *result = allocString(length);
+    if (result)
+    {
+        memcpy(result, src, length);
+    }
+    return result;
+}
+
+static char *copyOf(const char *str)
+{
+    return str ? copyRange(str, strlen(str)) : NULL;
+}
+
+static void seedRandomOnce(void)
+{
+    static bool seeded = false;
+    if (!seeded)
+    {
+        srand((unsigned int)time(NULL));
+        seeded = true;
+    }
+}
+
+static bool isWordSeparator(char c)
+{
+    return isWhiteSpace(c) || c == '_' || c == '-';
+}
+
+static bool isTitleBoundary(char c)
+{
+    return isWhiteSpace(c) || c == '.' || c == '!' || c == '?';
+}
+
+static bool containsChar(const char *set, char c)
+{
+    return c != '\0' && strchr(set, c) != NULL;
+}
+
+static bool allChars(const char *str, bool (*predicate)(char))
+{
+    if (!str || *str == '\0')
+    {
+        return false;
+    }
+    for (; *str; str++)
+    {
+        if (!predicate(*str))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool onlyCase(const char *str, bool (*wanted)(char), bool (*unwanted)(char))
+{
+    if (!str)
+    {
+        return false;
+    }
+    bool found = false;
+    for (; *str; str++)
+    {
+        if (unwanted(*str))
+        {
+            return false;
+        }
+        found = found || wanted(*str);
+    }
+    return found;
+}
+
+static bool containedInDoubled(const char *str, const char *subStr)
+{
+    size_t length = strlen(str);
+    char *doubled = allocString(length * 2);
+    if (!doubled)
+    {
+        return false;
+    }
+    memcpy(doubled, str, length);
+    memcpy(doubled + length, str, length);
+    bool found = strstr(doubled, subStr) != NULL;
+    free(doubled);
+    return found;
+}
+
+static char *trimSides(const char *str, bool left, bool right)
+{
+    if (!str)
+    {
+        return NULL;
+    }
+    const char *start = str;
+    const char *end = str + strlen(str);
+    while (left && start < end && isWhiteSpace(*start))
+    {
+        start++;
+    }
+    while (right && end > start && isWhiteSpace(end[-1]))
+    {
+        end--;
+    }
+    return copyRange(start, (size_t)(end - start));
+}
+
+static char *rotate(const char *str, long long shiftRight)
+{
+    if (!str)
+    {
+        return NULL;
+    }
+    size_t length = strlen(str);
+    char *rotated = allocString(length);
+    if (!rotated || length == 0)
+    {
+        return rotated;
+    }
+    long long size = (long long)length;
+    size_t shift = (size_t)(((shiftRight % size) + size) % size);
+    memcpy(rotated, str + length - shift, shift);
+    memcpy(rotated + shift, str, length - shift);
+    return rotated;
+}
+
+static char *convertCase(const char *str, char separator, bool upperFirstWord, bool upperOtherWords)
+{
+    if (!str)
+    {
+        return NULL;
+    }
+    char *result = allocString(strlen(str));
+    if (!result)
+    {
+        return NULL;
+    }
+    size_t length = 0;
+    size_t words = 0;
+    while (*str)
+    {
+        while (*str && isWordSeparator(*str))
+        {
+            str++;
+        }
+        if (*str == '\0')
+        {
+            break;
+        }
+        if (words > 0 && separator != '\0')
+        {
+            result[length++] = separator;
+        }
+        bool upper = words == 0 ? upperFirstWord : upperOtherWords;
+        result[length++] = upper ? toUpperCase(*str) : toLowerCase(*str);
+        str++;
+        while (*str && !isWordSeparator(*str))
+        {
+            result[length++] = toLowerCase(*str++);
+        }
+        words++;
+    }
+    result[length] = '\0';
+    return result;
+}
+
+static char *replaceOccurrences(const char *str, const char *oldSubStr, const char *newSubStr, bool all)
+{
+    if (!str || !oldSubStr || !newSubStr)
+    {
+        return NULL;
+    }
+    size_t oldLength = strlen(oldSubStr);
+    if (oldLength == 0)
+    {
+        return copyOf(str);
+    }
+    size_t newLength = strlen(newSubStr);
+    size_t count = 0;
+    for (const char *match = strstr(str, oldSubStr); match; match = all ? strstr(match + oldLength, oldSubStr) : NULL)
+    {
+        count++;
+    }
+    char *result = allocString(strlen(str) - count * oldLength + count * newLength);
+    if (!result)
+    {
+        return NULL;
+    }
+    char *out = result;
+    const char *cursor = str;
+    for (size_t i = 0; i < count; i++)
+    {
+        const char *match = strstr(cursor, oldSubStr);
+        size_t prefixLength = (size_t)(match - cursor);
+        memcpy(out, cursor, prefixLength);
+        memcpy(out + prefixLength, newSubStr, newLength);
+        out += prefixLength + newLength;
+        cursor = match + oldLength;
+    }
+    strcpy(out, cursor);
+    return result;
+}
+
+static char *pad(const char *str, int width, char fillChar, Alignment alignment)
+{
+    if (!str)
+    {
+        return NULL;
+    }
+    size_t length = strlen(str);
+    if (width < 0 || (size_t)width <= length)
+    {
+        return copyOf(str);
+    }
+    size_t padding = (size_t)width - length;
+    size_t left = alignment == ALIGN_LEFT ? 0 : alignment == ALIGN_RIGHT ? padding : padding / 2;
+    char *result = allocString((size_t)width);
+    if (result)
+    {
+        memset(result, fillChar, (size_t)width);
+        memcpy(result + left, str, length);
+    }
+    return result;
+}
+
+static char *digitsToBinary(const char *digits, int base)
+{
+    if (!digits)
+    {
+        return NULL;
+    }
+    size_t bitsPerDigit = base == 16 ? 4 : 3;
+    size_t length = strlen(digits);
+    char *binary = allocString(length * bitsPerDigit);
+    if (!binary)
+    {
+        return NULL;
+    }
+    for (size_t i = 0; i < length; i++)
+    {
+        char c = toLowerCase(digits[i]);
+        const char *position = containsChar(hexDigits, c) ? strchr(hexDigits, c) : NULL;
+        int value = position ? (int)(position - hexDigits) : base;
+        if (value >= base)
+        {
+            free(binary);
+            return NULL;
+        }
+        memcpy(binary + i * bitsPerDigit, hexToBin[value] + 4 - bitsPerDigit, bitsPerDigit);
+    }
+    return binary;
+}
+
+static size_t expandTabsInto(const char *str, size_t tabSize, char *out)
+{
+    size_t length = 0;
+    size_t column = 0;
+    for (; *str; str++)
+    {
+        if (*str == '\t')
+        {
+            size_t spaces = tabSize > 0 ? tabSize - column % tabSize : 0;
+            if (out)
+            {
+                memset(out + length, ' ', spaces);
+            }
+            length += spaces;
+            column += spaces;
+        }
+        else
+        {
+            if (out)
+            {
+                out[length] = *str;
+            }
+            length++;
+            column = (*str == '\n' || *str == '\r') ? 0 : column + 1;
+        }
+    }
+    return length;
+}
+
+static int base64Value(char c)
+{
+    if (isUpperCase(c))
+    {
+        return c - 'A';
+    }
+    if (isLowerCase(c))
+    {
+        return c - 'a' + 26;
+    }
+    if (isDigit(c))
+    {
+        return c - '0' + 52;
+    }
+    if (c == '+')
+    {
+        return 62;
+    }
+    return c == '/' ? 63 : -1;
+}
+
+static char swapCase(char c)
+{
+    return isUpperCase(c) ? toLowerCase(c) : toUpperCase(c);
+}
+
+bool isWhiteSpace(char c)
+{
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
+}
+
+bool isDigit(char c)
 {
     return c >= '0' && c <= '9';
 }
 
-bool isLetter(char c) 
+bool isLetter(char c)
 {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    return isUpperCase(c) || isLowerCase(c);
 }
 
-bool isAlphaNumeric(char c) 
+bool isAlphaNumeric(char c)
 {
     return isDigit(c) || isLetter(c);
 }
 
-bool isUpperCase(char c) 
+bool isUpperCase(char c)
 {
     return c >= 'A' && c <= 'Z';
 }
 
-bool isLowerCase(char c) 
+bool isLowerCase(char c)
 {
     return c >= 'a' && c <= 'z';
 }
 
-bool isPunctuation(char c) 
+bool isPunctuation(char c)
 {
-    return c == '.' || c == ',' || c == '?' || c == '!' || c == ':' || c == ';' || c == '-';
+    return containsChar(".,?!:;-", c);
 }
 
-bool isSpecialChar(char c) 
+bool isSpecialChar(char c)
 {
-    return c == '~' || c == '`' || c == '!' || c == '@' || c == '#' || c == '$' || c == '%' || c == '^' || c == '&' || c == '*' || c == '(' || c == ')' || c == '_' || c == '+' || c == '=' || c == '{' || c == '}' || c == '[' || c == ']' || c == '|' || c == '\\' || c == ':' || c == ';' || c == '"' || c == '\'' || c == '<' || c == '>' || c == ',' || c == '.' || c == '?' || c == '/';
+    return containsChar("~`!@#$%^&*()_+={}[]|\\:;\"'<>,.?/", c);
 }
 
-bool isVowel(char c) 
+bool isVowel(char c)
 {
-    return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
+    return containsChar("aeiouAEIOU", c);
 }
 
-bool isConsonant(char c) 
+bool isConsonant(char c)
 {
     return isLetter(c) && !isVowel(c);
 }
 
-bool isPalindrome(const char *str) 
+bool isPrintableChar(char c)
 {
-    int length = stringLength(str);
-    const char *end = str + length - 1;
-    while (end > str) 
+    return c >= 32 && c <= 126;
+}
+
+bool isPalindrome(const char *str)
+{
+    if (!str)
     {
-        if (*end != *str) 
+        return false;
+    }
+    size_t length = strlen(str);
+    for (size_t i = 0; i < length / 2; i++)
+    {
+        if (str[i] != str[length - 1 - i])
         {
             return false;
         }
-        end--;
-        str++;
     }
     return true;
 }
 
 bool isAnagram(const char *str1, const char *str2)
 {
-    int length1 = stringLength(str1);
-    int length2 = stringLength(str2);
-    if (length1 != length2)
+    if (!str1 || !str2 || strlen(str1) != strlen(str2))
     {
         return false;
     }
-    int *count1 = (int*)calloc(26, sizeof(int));
-    int *count2 = (int*)calloc(26, sizeof(int));
-    while (*str1 != '\0')
+    int counts[UCHAR_MAX + 1] = {0};
+    for (; *str1; str1++, str2++)
     {
-        count1[*str1 - 'a']++;
-        count2[*str2 - 'a']++;
-        str1++;
-        str2++;
+        counts[(unsigned char)*str1]++;
+        counts[(unsigned char)*str2]--;
     }
-    for (int i = 0; i < 26; i++)
+    for (int i = 0; i <= UCHAR_MAX; i++)
     {
-        if (count1[i] != count2[i])
+        if (counts[i] != 0)
         {
             return false;
         }
@@ -97,1887 +432,922 @@ bool isAnagram(const char *str1, const char *str2)
 
 bool isSubString(const char *str, const char *subStr)
 {
-    while (*str != '\0')
-    {
-        if (*str == *subStr)
-        {
-            const char *tempStr = str;
-            const char *tempSubStr = subStr;
-            while (*tempSubStr != '\0')
-            {
-                if (*tempStr != *tempSubStr)
-                {
-                    break;
-                }
-                tempStr++;
-                tempSubStr++;
-            }
-            if (*tempSubStr == '\0')
-            {
-                return true;
-            }
-        }
-        str++;
-    }
-    return false;
-}
-
-bool isRotationOfPalindrome(const char *str) 
-{
-    int length = stringLength(str);
-    char *temp = (char*)malloc(length * 2 + 1);
-
-    for (int i = 0; i < length; i++) 
-    {
-        stringCopy(temp, str + i);
-        stringCopy(temp + length - i, str);
-
-        if (isPalindrome(temp)) 
-        {
-            free(temp);
-            return true;
-        }
-    }
-
-    free(temp);
-    return false;
+    return str && subStr && strstr(str, subStr) != NULL;
 }
 
 bool isRotation(const char *str1, const char *str2)
 {
-    int length1 = stringLength(str1);
-    int length2 = stringLength(str2);
-    if (length1 != length2) 
-    {
-        return false;
-    }
-
-    char *temp = (char*)malloc(length1 * 2 + 1);
-    stringCopy(temp, str1);
-    stringCopy(temp + length1, str1);
-    temp[length1 * 2] = '\0';
-    bool result = isSubString(temp, str2);
-    free(temp);
-    return result;
+    return str1 && str2 && strlen(str1) == strlen(str2) && containedInDoubled(str1, str2);
 }
 
-bool isRotationOfAnagram(const char *str1, const char *str2) 
+bool isRotationOfPalindrome(const char *str)
 {
-    int length1 = stringLength(str1);
-    int length2 = stringLength(str2);
-    if (length1 != length2) 
+    if (!str)
     {
         return false;
     }
+    size_t length = strlen(str);
+    if (length == 0)
+    {
+        return true;
+    }
+    for (size_t shift = 0; shift < length; shift++)
+    {
+        bool palindrome = true;
+        for (size_t i = 0; i < length / 2 && palindrome; i++)
+        {
+            palindrome = str[(shift + i) % length] == str[(shift + length - 1 - i) % length];
+        }
+        if (palindrome)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
-    char *temp = (char*)malloc(length1 * 2 + 1);
-    stringCopy(temp, str1);
-    stringCopy(temp + length1, str1);
-    temp[length1 * 2] = '\0';
-    bool result = isAnagram(temp, str2);
-    free(temp);
-    return result;
+bool isRotationOfAnagram(const char *str1, const char *str2)
+{
+    return isAnagram(str1, str2);
 }
 
 bool isRotationOfSubString(const char *str1, const char *str2)
 {
-    int length1 = stringLength(str1);
-    int length2 = stringLength(str2);
-    if (length1 != length2)
-    {
-        return false;
-    }
-
-    char *temp = (char*)malloc(length1 * 2 + 1);
-    stringCopy(temp, str1);
-    stringCopy(temp + length1, str1);
-    temp[length1 * 2] = '\0';
-    bool result = isSubString(temp, str2);
-    free(temp);
-    return result;
-}
-
-bool isPrintableChar(char c) 
-{
-    return c >= 32 && c <= 126;
+    return str1 && str2 && strlen(str2) <= strlen(str1) && containedInDoubled(str1, str2);
 }
 
 bool startsWithSubString(const char *str, const char *subStr)
 {
-    while (*subStr) 
+    return stringStartsWith(str, subStr);
+}
+
+bool stringIsNumeric(const char *str)
+{
+    return allChars(str, isDigit);
+}
+
+bool stringIsAlpha(const char *str)
+{
+    return allChars(str, isLetter);
+}
+
+bool stringIsAlphaNumeric(const char *str)
+{
+    return allChars(str, isAlphaNumeric);
+}
+
+bool stringIsPrintable(const char *str)
+{
+    return str && (*str == '\0' || allChars(str, isPrintableChar));
+}
+
+bool stringIsTitle(const char *str)
+{
+    if (!str)
     {
-        if (*str != *subStr) 
-        {
-            return false;
-        }
-        str++;
-        subStr++;
+        return false;
     }
-    return true;
-}
-
-bool stringIsNumeric(const char *str) 
-{
-    while (*str) 
+    bool atWordStart = true;
+    bool hasLetter = false;
+    for (; *str; str++)
     {
-        if (!isDigit(*str)) 
+        if (isLetter(*str))
         {
-            return false;
+            if (atWordStart ? !isUpperCase(*str) : !isLowerCase(*str))
+            {
+                return false;
+            }
+            atWordStart = false;
+            hasLetter = true;
         }
-        str++;
+        else if (isTitleBoundary(*str))
+        {
+            atWordStart = true;
+        }
     }
-    return true;
+    return hasLetter;
 }
 
-bool stringIsAlpha(const char *str) 
+bool stringIsWhiteSpace(const char *str)
 {
-    while (*str) 
-    {
-        if (!isLetter(*str)) 
-        {
-            return false;
-        }
-        str++;
-    }
-    return true;
+    return allChars(str, isWhiteSpace);
 }
 
-bool stringIsAlphaNumeric(const char *str) 
+bool stringIsUpperCase(const char *str)
 {
-    while (*str) 
-    {
-        if (!isLetter(*str) && !isDigit(*str)) 
-        {
-            return false;
-        }
-        str++;
-    }
-    return true;
+    return onlyCase(str, isUpperCase, isLowerCase);
 }
 
-bool stringIsPrintable(const char *str) 
+bool stringIsLowerCase(const char *str)
 {
-    while (*str) {
-        if (!isPrintableChar(*str)) {
-            return false;
-        }
-        str++;
-    }
-    return true;
+    return onlyCase(str, isLowerCase, isUpperCase);
 }
 
-bool stringIsTitle(const char *str) 
+bool stringIsEmpty(const char *str)
 {
-    bool newWord = true;
-    while (*str) {
-        if (isWhiteSpace(*str)) 
-        {
-            newWord = true;
-        } else if (newWord && isLowerCase(*str)) 
-        {
-            return false;
-        } 
-        else if (!newWord && isUpperCase(*str)) 
-        {
-            return false;
-        }
-        newWord = false;
-        str++;
-    }
-    return true;
-}
-
-bool stringIsWhiteSpace(const char *str) 
-{
-    while (*str) 
-    {
-        if (!isWhiteSpace(*str)) 
-        {
-            return false;
-        }
-        str++;
-    }
-    return true;
-}
-
-bool stringIsUpperCase(const char *str) 
-{
-    while (*str) 
-    {
-        if (!isUpperCase(*str)) 
-        {
-            return false;
-        }
-        str++;
-    }
-    return true;
-}
-
-bool stringIsLowerCase(const char *str) 
-{
-    while (*str) 
-    {
-        if (!isLowerCase(*str)) 
-        {
-            return false;
-        }
-        str++;
-    }
-    return true;
-}
-
-bool stringIsEmpty(const char *str) 
-{
-    // A string is considered empty if it's NULL or the first character is the null terminator
     return str == NULL || str[0] == '\0';
 }
 
-char toUpperCase(char c) 
+bool stringStartsWith(const char *str, const char *prefix)
 {
-    if (isLowerCase(c)) 
-    {
-        return c - 32;
-    }
-    return c;
+    return str && prefix && strncmp(str, prefix, strlen(prefix)) == 0;
 }
 
-char toLowerCase(char c) 
+bool stringEndsWith(const char *str, const char *suffix)
 {
-    if (isUpperCase(c)) 
+    if (!str || !suffix)
     {
-        return c + 32;
+        return false;
     }
-    return c;
+    size_t length = strlen(str);
+    size_t suffixLength = strlen(suffix);
+    return suffixLength <= length && memcmp(str + length - suffixLength, suffix, suffixLength) == 0;
+}
+
+bool stringContains(const char *str, const char *subStr)
+{
+    return isSubString(str, subStr);
 }
 
 int stringLength(const char *str)
 {
-    int length = 0;
-    while (*str != '\0')
-    {
-        length++;
-        str++;
-    }
-    return length;
+    return str ? (int)strlen(str) : 0;
 }
 
-int stringWordCount(const char* str)
-{
-    int wordCount = 0;
-    int inWord = 0;
-    while (*str != '\0')
-    {
-        if (*str == ' ' || *str == '\t' || *str == '\n')
-        {
-            inWord = 0;
-        }
-        else if (inWord == 0)
-        {
-            inWord = 1;
-            wordCount++;
-        }
-        str++;
-    }
-    return wordCount;
-}
-
-int stringDigitCount(const char* str)
-{
-    int digitCount = 0;
-    while (*str != '\0')
-    {
-        if (*str >= '0' && *str <= '9')
-        {
-            digitCount++;
-        }
-        str++;
-    }
-    return digitCount;
-}
-
-int stringCharCount(const char* str, char c)
-{
-    int charCount = 0;
-    while (*str != '\0')
-    {
-        if (*str == c)
-        {
-            charCount++;
-        }
-        str++;
-    }
-    return charCount;
-}
-
-int stringFindChar(const char* str, char c)
-{
-    int index = 0;
-    while (*str != '\0')
-    {
-        if (*str == c)
-        {
-            return index;
-        }
-        index++;
-        str++;
-    }
-    return -1;
-}
-
-int stringFindString(const char *str, const char *subStr)
-{
-    int index = 0;
-    while (*str != '\0')
-    {
-        if (*str == *subStr)
-        {
-            const char *tempStr = str;
-            const char *tempSubStr = subStr;
-            while (*tempSubStr != '\0')
-            {
-                if (*tempStr != *tempSubStr)
-                {
-                    break;
-                }
-                tempStr++;
-                tempSubStr++;
-            }
-            if (*tempSubStr == '\0')
-            {
-                return index;
-            }
-        }
-        index++;
-        str++;
-    }
-    return -1;
-}
-
-int stringCompare(const char *str1, const char *str2)
-{
-    while (*str1 != '\0' && *str2 != '\0')
-    {
-        if (*str1 != *str2)
-        {
-            return 0;
-        }
-        str1++;
-        str2++;
-    }
-    if (*str1 == '\0' && *str2 == '\0')
-    {
-        return 1;
-    }
-    return 0;
-}
-
-char* stringCopy(char *dest, const char *src)
-{
-    char *temp = dest;
-    while (*src != '\0')
-    {
-        *temp = *src;
-        temp++;
-        src++;
-    }
-    *temp = '\0';
-    
-    return dest; // Return the destination pointer
-}
-
-char* stringReverse(const char *str) 
-{
-    int length = stringLength(str);
-    char *reversed = (char*)malloc(length + 1);
-    char *temp = reversed;
-
-    str = str + length - 1; // Point to the end of the input string
-
-    while (length > 0) 
-    {
-        *temp = *str;
-        temp++;
-        str--;
-        length--;
-    }
-    *temp = '\0';
-
-    return reversed;
-}
-
-char* stringToUpper(const char *str)
-{
-    int length = stringLength(str);
-    char *upper = (char*)malloc(length + 1);
-    char *temp = upper;
-
-    while (*str != '\0')
-    {
-        if (*str >= 'a' && *str <= 'z')
-        {
-            *temp = *str - 32;
-        }
-        else
-        {
-            *temp = *str;
-        }
-        temp++;
-        str++;
-    }
-    *temp = '\0';
-
-    return upper;
-}
-
-char* stringToLower(const char *str)
-{
-    int length = stringLength(str);
-    char *lower = (char*)malloc(length + 1);
-    char *temp = lower;
-
-    while (*str != '\0')
-    {
-        if (*str >= 'A' && *str <= 'Z')
-        {
-            *temp = *str + 32;
-        }
-        else
-        {
-            *temp = *str;
-        }
-        temp++;
-        str++;
-    }
-    *temp = '\0';
-
-    return lower;
-}
-
-char* stringTrim(const char *str) 
-{
-    // Find the start of the trimmed string
-    while (isWhiteSpace(*str)) 
-    {
-        str++;
-    }
-    
-    // Find the end of the trimmed string
-    const char *end = str + stringLength(str) - 1;
-    while (end > str && isWhiteSpace(*end)) 
-    {
-        end--;
-    }
-    
-    // Allocate memory for the trimmed string
-    int trimmed_length = end - str + 1;
-    char *trimmed = (char*)malloc(trimmed_length + 1);
-    
-    // Copy the characters
-    char *temp = trimmed;
-    while (str <= end) 
-    {
-        *temp++ = *str++;
-    }
-    *temp = '\0';
-
-    return trimmed;
-}
-
-char* stringConcat(const char *str1, const char *str2)
-{
-    int length1 = stringLength(str1);
-    int length2 = stringLength(str2);
-    char *concat = (char*)malloc(length1 + length2 + 1);
-    char *temp = concat;
-
-    while (*str1 != '\0')
-    {
-        *temp = *str1;
-        temp++;
-        str1++;
-    }
-    while (*str2 != '\0')
-    {
-        *temp = *str2;
-        temp++;
-        str2++;
-    }
-    *temp = '\0';
-
-    return concat;
-}
-
-char* stringSubString(const char *str, int start, int end)
-{
-    int length = stringLength(str);
-    if (start < 0 || start > length || end < 0 || end > length || start > end)
-    {
-        return NULL;
-    }
-    char *subStr = (char*)malloc(end - start + 1);
-    char *temp = subStr;
-    str = str + start;
-    while (start <= end)
-    {
-        *temp = *str;
-        temp++;
-        str++;
-        start++;
-    }
-    *temp = '\0';
-
-    return subStr;
-}
-
-char* stringReplace(const char *str, const char *subStr, const char *newSubStr) 
-{
-    int length = stringLength(str);
-    int subStrLength = stringLength(subStr);
-    int newSubStrLength = stringLength(newSubStr);
-    int index = stringFindString(str, subStr);
-    
-    if (index == -1) 
-    {
-        return NULL;
-    }
-
-    const char *originalStr = str; // Keep track of the start of the original string
-
-    char *replaced = (char*)malloc(length - subStrLength + newSubStrLength + 1);
-    char *temp = replaced;
-    
-    while (*str != '\0') 
-    {
-        if (str == originalStr + index) 
-        {
-            stringCopy(temp, newSubStr);
-            temp += newSubStrLength;
-            str += subStrLength;
-        } else 
-        {
-            *temp = *str;
-            temp++;
-            str++;
-        }
-    }
-    
-    *temp = '\0';
-
-    return replaced;
-}
-
-char* stringRotate(const char *str, int n) 
-{
-    int length = stringLength(str);
-    
-    if (length == 0)
-    {
-        return NULL;
-    }
-
-    // Normalize n to be between 0 and length - 1
-    n = ((n % length) + length) % length;
-
-    char *rotated = (char*)malloc(length + 1);
-    
-    // Copy the last n characters
-    memcpy(rotated, str + length - n, n);
-    
-    // Copy the first length - n characters
-    memcpy(rotated + n, str, length - n);
-
-    rotated[length] = '\0';
-
-    return rotated;
-}
-
-char* stringRotateLeft(const char *str, int n) 
-{
-    int length = stringLength(str);
-    
-    if (length == 0) 
-    {
-        return NULL;
-    }
-
-    // Normalize n to be between 0 and length - 1
-    n = ((n % length) + length) % length;
-
-    char *rotated = (char*)malloc(length + 1);
-    
-    // Copy the substring starting from n to the end
-    memcpy(rotated, str + n, length - n);
-    
-    // Copy the first n characters to the end of the new string
-    memcpy(rotated + length - n, str, n);
-
-    rotated[length] = '\0';
-
-    return rotated;
-}
-
-char* stringRotateRight(const char *str, int n) 
-{
-    int length = stringLength(str);
-    
-    if (length == 0) 
-    {
-        return NULL;
-    }
-
-    // Normalize n to be between 0 and length - 1
-    n = ((n % length) + length) % length;
-
-    char *rotated = (char*)malloc(length + 1);
-    
-    // Copy the last n characters to the beginning
-    memcpy(rotated, str + length - n, n);
-    
-    // Copy the first length - n characters to the end
-    memcpy(rotated + n, str, length - n);
-
-    rotated[length] = '\0';
-
-    return rotated;
-}
-
-
-char* stringCamelCase(const char *str) 
-{
-    int length = stringLength(str);
-    char *camelCase = (char*)malloc(length + 1);
-    int i = 0, j = 0;
-    int newWord = 1;
-
-    while (i < length) 
-    {
-        if (isWhiteSpace(str[i])) 
-        {
-            newWord = 1;
-        } 
-        else 
-        {
-            if (newWord) 
-            {
-                camelCase[j++] = toUpperCase(str[i]);
-            } 
-            else 
-            {
-                camelCase[j++] = toLowerCase(str[i]);
-            }
-            newWord = 0;
-        }
-        i++;
-    }
-    camelCase[j] = '\0';
-    return camelCase;
-}
-
-char* stringSnakeCase(const char *str) 
-{
-    int length = stringLength(str);
-    char *snakeCase = (char*)malloc(length + 1);
-    int i = 0, j = 0;
-
-    while (i < length) 
-    {
-        if (isWhiteSpace(str[i])) 
-        {
-            snakeCase[j++] = '_';
-        } 
-        else 
-        {
-            snakeCase[j++] = toLowerCase(str[i]);
-        }
-        i++;
-    }
-    snakeCase[j] = '\0';
-    return snakeCase;
-}
-
-char* stringPascalCase(const char *str) {
-    int length = stringLength(str);
-    char *pascalCase = (char*)malloc(length + 1);
-    int i = 0, j = 0;
-    int newWord = 1;
-
-    while (i < length) 
-    {
-        if (isWhiteSpace(str[i])) 
-        {
-            newWord = 1;
-        } 
-        else 
-        {
-            if (newWord) 
-            {
-                pascalCase[j++] = toUpperCase(str[i]);
-            } else 
-            {
-                pascalCase[j++] = toLowerCase(str[i]);
-            }
-            newWord = 0;
-        }
-        i++;
-    }
-    pascalCase[j] = '\0';
-    return pascalCase;
-}
-
-char* stringKebabCase(const char *str) 
-{
-    int length = stringLength(str);
-    char *kebabCase = (char*)malloc(length + 1);
-    int i = 0, j = 0;
-
-    while (i < length) 
-    {
-        if (isWhiteSpace(str[i])) 
-        {
-            kebabCase[j++] = '-';
-        } 
-        else 
-        {
-            kebabCase[j++] = toLowerCase(str[i]);
-        }
-        i++;
-    }
-    kebabCase[j] = '\0';
-    return kebabCase;
-}
-
-int stringCountSubstrings(const char *str, const char *subStr) 
+int stringWordCount(const char *str)
 {
     int count = 0;
-    int strLength = stringLength(str);
-    int subStrLength = stringLength(subStr);
-    
-    for (int i = 0; i <= strLength - subStrLength; i++) 
+    bool inWord = false;
+    for (; str && *str; str++)
     {
-        int j;
-        for (j = 0; j < subStrLength; j++) 
+        if (isWhiteSpace(*str))
         {
-            if (str[i + j] != subStr[j]) 
-            {
-                break;
-            }
+            inWord = false;
         }
-        if (j == subStrLength)
+        else if (!inWord)
         {
+            inWord = true;
             count++;
-            i += subStrLength - 1;
         }
     }
     return count;
 }
 
-char* stringInsert(const char *str, const char *subStr, int pos) 
+int stringDigitCount(const char *str)
 {
-    char *left = stringSubString(str, 0, pos);
-    char *right = stringSubString(str, pos, stringLength(str));
-    
-    char *leftConcat = stringConcat(left, subStr);
-    char *result = stringConcat(leftConcat, right);
-    
-    free(left);
-    free(right);
-    free(leftConcat);
-    
-    return result;
-}
-
-char* stringRepeat(const char *str, int times) 
-{
-    char *result = (char *)malloc(stringLength(str) * times + 1);
-    result[0] = '\0';
-    
-    for (int i = 0; i < times; i++) 
+    int count = 0;
+    for (; str && *str; str++)
     {
-        char *temp = stringConcat(result, str);
-        strcpy(result, temp);
-        free(temp);
+        count += isDigit(*str);
     }
-    
-    return result;
+    return count;
 }
 
-int stringToInteger(const char *str) 
+int stringCharCount(const char *str, char c)
 {
-    int result = 0;
+    int count = 0;
+    for (; str && *str; str++)
+    {
+        count += *str == c;
+    }
+    return count;
+}
+
+int stringFindChar(const char *str, char c)
+{
+    const char *found = (str && c != '\0') ? strchr(str, c) : NULL;
+    return found ? (int)(found - str) : -1;
+}
+
+int stringFindString(const char *str, const char *subStr)
+{
+    const char *found = (str && subStr) ? strstr(str, subStr) : NULL;
+    return found ? (int)(found - str) : -1;
+}
+
+int stringCountSubstrings(const char *str, const char *subStr)
+{
+    if (!str || !subStr || *subStr == '\0')
+    {
+        return 0;
+    }
+    size_t subLength = strlen(subStr);
+    int count = 0;
+    for (const char *match = strstr(str, subStr); match; match = strstr(match + subLength, subStr))
+    {
+        count++;
+    }
+    return count;
+}
+
+int stringToInteger(const char *str)
+{
+    if (!str)
+    {
+        return 0;
+    }
     int sign = 1;
-    
-    if (*str == '-') 
+    if (*str == '-' || *str == '+')
     {
-        sign = -1;
+        sign = *str == '-' ? -1 : 1;
         str++;
     }
-    
-    while (*str) 
+    if (*str == '\0')
     {
-        if (!isDigit(*str)) 
+        return 0;
+    }
+    long long value = 0;
+    for (; *str; str++)
+    {
+        if (!isDigit(*str))
         {
-            return 0; // Invalid character in the string
+            return 0;
         }
-        result = result * 10 + (*str - '0');
-        str++;
+        if (value <= (long long)INT_MAX + 1)
+        {
+            value = value * 10 + (*str - '0');
+        }
     }
-    
-    return sign * result;
+    value *= sign;
+    if (value > INT_MAX)
+    {
+        return INT_MAX;
+    }
+    return value < INT_MIN ? INT_MIN : (int)value;
+}
+
+int stringCompare(const char *str1, const char *str2)
+{
+    return str1 && str2 && strcmp(str1, str2) == 0;
 }
 
 float stringToFloat(const char *str)
 {
-    float result = 0.0;
-    float sign = 1.0;
-    float decimalPlace = 0.1;
-    bool isDecimal = false;
-    
-    if (*str == '-')
+    if (!str)
     {
-        sign = -1.0;
+        return 0.0f;
+    }
+    double sign = 1.0;
+    if (*str == '-' || *str == '+')
+    {
+        sign = *str == '-' ? -1.0 : 1.0;
         str++;
     }
-    
-    while (*str)
+    double result = 0.0;
+    double scale = 1.0;
+    bool seenDot = false;
+    bool seenDigit = false;
+    for (; *str; str++)
     {
-        if (*str == '.')
+        if (*str == '.' && !seenDot)
         {
-            isDecimal = true;
+            seenDot = true;
         }
         else if (isDigit(*str))
         {
-            int digit = *str - '0';
-            if (isDecimal)
+            seenDigit = true;
+            if (seenDot)
             {
-                result += digit * decimalPlace;
-                decimalPlace /= 10.0;
+                scale /= 10.0;
+                result += (*str - '0') * scale;
             }
             else
             {
-                result = result * 10.0 + digit;
+                result = result * 10.0 + (*str - '0');
             }
         }
         else
         {
-            return 0.0; // Invalid character in string
+            return 0.0f;
         }
-        str++;
     }
-    
-    return result * sign;
+    return seenDigit ? (float)(sign * result) : 0.0f;
 }
 
-char* integerToString(int value)
+char toUpperCase(char c)
 {
-    char buffer[12]; // Buffer to hold the string representation
-    int i = 0;
-    int sign = 1;
-    
-    if (value < 0)
+    return isLowerCase(c) ? (char)(c - 'a' + 'A') : c;
+}
+
+char toLowerCase(char c)
+{
+    return isUpperCase(c) ? (char)(c - 'A' + 'a') : c;
+}
+
+char *stringCopy(char *dest, const char *src)
+{
+    if (dest && src)
     {
-        sign = -1;
-        value = -value;
+        strcpy(dest, src);
     }
-    
-    do
+    return dest;
+}
+
+char *stringReverse(const char *str)
+{
+    if (!str)
     {
-        buffer[i++] = (value % 10) + '0';
-        value /= 10;
-    } while (value > 0);
-    
-    if (sign < 0)
-    {
-        buffer[i++] = '-';
+        return NULL;
     }
-    
-    buffer[i] = '\0';
-    
-    // Reverse the buffer into the result
-    char *result = (char*)malloc(i + 1);
-    for (int j = 0; j < i; j++)
+    size_t length = strlen(str);
+    char *reversed = allocString(length);
+    for (size_t i = 0; reversed && i < length; i++)
     {
-        result[j] = buffer[i - j - 1];
+        reversed[i] = str[length - 1 - i];
     }
-    result[i] = '\0';
-    
+    return reversed;
+}
+
+char *stringToUpper(const char *str)
+{
+    return stringMap(str, toUpperCase);
+}
+
+char *stringToLower(const char *str)
+{
+    return stringMap(str, toLowerCase);
+}
+
+char *stringTrim(const char *str)
+{
+    return trimSides(str, true, true);
+}
+
+char *stringTrimLeft(const char *str)
+{
+    return trimSides(str, true, false);
+}
+
+char *stringTrimRight(const char *str)
+{
+    return trimSides(str, false, true);
+}
+
+char *stringConcat(const char *str1, const char *str2)
+{
+    if (!str1 || !str2)
+    {
+        return NULL;
+    }
+    size_t length1 = strlen(str1);
+    size_t length2 = strlen(str2);
+    char *result = allocString(length1 + length2);
+    if (result)
+    {
+        memcpy(result, str1, length1);
+        memcpy(result + length1, str2, length2);
+    }
     return result;
 }
 
-char* floatToString(float value, int precision)
+char *stringSubString(const char *str, int start, int end)
 {
-    int intPart = (int)value;
-    float decimalPart = value - intPart;
-    
-    // Convert the integer part
-    char* intStr = integerToString(intPart);
-    int intStrLen = stringLength(intStr);
-    
-    // Convert the decimal part
-    char decimalStr[10];
-    for (int i = 0; i < precision; i++)
+    if (!str || start < 0 || end < start)
     {
-        decimalPart *= 10;
-        decimalStr[i] = (int)decimalPart + '0';
-        decimalPart -= (int)decimalPart;
+        return NULL;
     }
-    decimalStr[precision] = '\0';
+    size_t length = strlen(str);
+    if ((size_t)start > length)
+    {
+        return NULL;
+    }
+    size_t last = (size_t)end < length ? (size_t)end + 1 : length;
+    return copyRange(str + start, last - (size_t)start);
+}
 
-    // Combine both parts
-    char* result = (char*)malloc(intStrLen + precision + 2);
-    stringCopy(result, intStr);
-    result[intStrLen] = '.';
-    stringCopy(result + intStrLen + 1, decimalStr);
-    
-    free(intStr);
-    
+char *stringReplace(const char *str, const char *subStr, const char *newSubStr)
+{
+    return replaceOccurrences(str, subStr, newSubStr, false);
+}
+
+char *stringReplaceAll(const char *str, const char *oldSubStr, const char *newSubStr)
+{
+    return replaceOccurrences(str, oldSubStr, newSubStr, true);
+}
+
+char *stringRemove(const char *str, const char *toRemove)
+{
+    return replaceOccurrences(str, toRemove, "", false);
+}
+
+char *stringRemoveAll(const char *str, const char *toRemove)
+{
+    return replaceOccurrences(str, toRemove, "", true);
+}
+
+char *stringRotate(const char *str, int n)
+{
+    return rotate(str, n);
+}
+
+char *stringRotateLeft(const char *str, int n)
+{
+    return rotate(str, -(long long)n);
+}
+
+char *stringRotateRight(const char *str, int n)
+{
+    return rotate(str, n);
+}
+
+char *stringCamelCase(const char *str)
+{
+    return convertCase(str, '\0', false, true);
+}
+
+char *stringPascalCase(const char *str)
+{
+    return convertCase(str, '\0', true, true);
+}
+
+char *stringSnakeCase(const char *str)
+{
+    return convertCase(str, '_', false, false);
+}
+
+char *stringKebabCase(const char *str)
+{
+    return convertCase(str, '-', false, false);
+}
+
+char *stringInsert(const char *str, const char *subStr, int pos)
+{
+    if (!str || !subStr || pos < 0 || (size_t)pos > strlen(str))
+    {
+        return NULL;
+    }
+    size_t length = strlen(str);
+    size_t subLength = strlen(subStr);
+    char *result = allocString(length + subLength);
+    if (result)
+    {
+        memcpy(result, str, (size_t)pos);
+        memcpy(result + pos, subStr, subLength);
+        memcpy(result + pos + subLength, str + pos, length - (size_t)pos);
+    }
     return result;
 }
 
-bool stringStartsWith(const char *str, const char *prefix) 
+char *stringRepeat(const char *str, int times)
 {
-    int strLength = stringLength(str);
-    int prefixLength = stringLength(prefix);
-
-    if (prefixLength > strLength) 
+    if (!str)
     {
-        return false;
+        return NULL;
     }
-
-    for (int i = 0; i < prefixLength; i++) 
+    size_t length = strlen(str);
+    size_t count = times > 0 ? (size_t)times : 0;
+    if (length > 0 && count > (SIZE_MAX - 1) / length)
     {
-        if (str[i] != prefix[i]) 
-        {
-            return false;
-        }
+        return NULL;
     }
-
-    return true;
-}
-
-bool stringEndsWith(const char *str, const char *suffix) 
-{
-    int strLength = stringLength(str);
-    int suffixLength = stringLength(suffix);
-
-    if (suffixLength > strLength) 
+    char *result = allocString(length * count);
+    for (size_t i = 0; result && i < count; i++)
     {
-        return false;
+        memcpy(result + i * length, str, length);
     }
-
-    for (int i = 0; i < suffixLength; i++) 
-    {
-        if (str[strLength - suffixLength + i] != suffix[i]) 
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-char* stringRemove(const char *str, const char *toRemove)
-{
-    int strLength = stringLength(str);
-    int toRemoveLength = stringLength(toRemove);
-    char *result = (char*)malloc(strLength + 1);
-    int j = 0;
-
-    for (int i = 0; i < strLength;) 
-    {
-        bool isMatch = true;
-        for (int k = 0; k < toRemoveLength; k++) 
-        {
-            if (str[i + k] != toRemove[k]) 
-            {
-                isMatch = false;
-                break;
-            }
-        }
-        
-        if (isMatch) 
-        {
-            i += toRemoveLength;
-        } 
-        else 
-        {
-            result[j++] = str[i++];
-        }
-    }
-
-    result[j] = '\0';
-
     return result;
 }
 
-char* stringRemoveAll(const char *str, const char *toRemove) 
+char *integerToString(int value)
 {
-    int strLength = stringLength(str);
-    int toRemoveLength = stringLength(toRemove);
+    char buffer[16];
+    snprintf(buffer, sizeof buffer, "%d", value);
+    return copyOf(buffer);
+}
 
-    char *result = (char*)malloc(strLength + 1);
-    int j = 0, i = 0;
-
-    while (i < strLength) 
+char *floatToString(float value, int precision)
+{
+    if (precision < 0)
     {
-        bool isMatch = true;
-
-        // Check if the substring to remove matches at the current position
-        for (int k = 0; k < toRemoveLength; k++) 
-        {
-            if (str[i + k] != toRemove[k] || i + k >= strLength) 
-            {
-                isMatch = false;
-                break;
-            }
-        }
-
-        // If it matches, skip the characters in the substring to remove
-        if (isMatch) 
-        {
-            i += toRemoveLength;
-        } else 
-        {
-            // If it doesn't match, copy the current character to the result
-            result[j++] = str[i++];
-        }
+        precision = 0;
     }
-
-    // Null terminate the result string
-    result[j] = '\0';
-
+    int length = snprintf(NULL, 0, "%.*f", precision, (double)value);
+    if (length < 0)
+    {
+        return NULL;
+    }
+    char *result = allocString((size_t)length);
+    if (result)
+    {
+        snprintf(result, (size_t)length + 1, "%.*f", precision, (double)value);
+    }
     return result;
 }
 
-char* stringCapitalize(const char *str) 
+char *stringCapitalize(const char *str)
 {
-    int length = stringLength(str);
-    char *capitalized = (char*)malloc(length + 1);
-    int i = 0;
-    bool newWord = true;
-
-    while (i < length) 
+    char *result = copyOf(str);
+    bool atWordStart = true;
+    for (char *c = result; c && *c; c++)
     {
-        if (isWhiteSpace(str[i])) 
+        if (isWhiteSpace(*c))
         {
-            newWord = true;
-        } 
-        else 
-        {
-            if (newWord) 
-            {
-                capitalized[i] = toUpperCase(str[i]);
-            } 
-            else 
-            {
-                capitalized[i] = str[i];
-            }
-            newWord = false;
+            atWordStart = true;
         }
-        i++;
+        else
+        {
+            if (atWordStart)
+            {
+                *c = toUpperCase(*c);
+            }
+            atWordStart = false;
+        }
     }
-    capitalized[length] = '\0';
-    return capitalized;
+    return result;
 }
 
-char** stringSplit(const char *str, char delimiter, int *numTokens) 
+char **stringSplit(const char *str, char delimiter, int *numTokens)
 {
-    int length = stringLength(str);
-    *numTokens = 1;
-
-    for (int i = 0; i < length; i++) 
+    if (numTokens)
     {
-        if (str[i] == delimiter) 
-        {
-            (*numTokens)++;
-        }
+        *numTokens = 0;
     }
-
-    char **tokens = (char**)malloc((*numTokens) * sizeof(char*));
-    int tokenStart = 0;
-    int tokenIndex = 0;
-
-    for (int i = 0; i <= length; i++) 
+    if (!str || !numTokens)
     {
-        if (str[i] == delimiter || str[i] == '\0') 
+        return NULL;
+    }
+    int count = stringCharCount(str, delimiter) + 1;
+    char **tokens = malloc((size_t)count * sizeof *tokens);
+    if (!tokens)
+    {
+        return NULL;
+    }
+    const char *start = str;
+    for (int i = 0; i < count; i++)
+    {
+        const char *end = strchr(start, delimiter);
+        if (!end)
         {
-            int tokenLength = i - tokenStart;
-            tokens[tokenIndex] = (char*)malloc(tokenLength + 1);
-            for (int j = 0; j < tokenLength; j++) 
+            end = start + strlen(start);
+        }
+        tokens[i] = copyRange(start, (size_t)(end - start));
+        if (!tokens[i])
+        {
+            while (i-- > 0)
             {
-                tokens[tokenIndex][j] = str[tokenStart + j];
+                free(tokens[i]);
             }
-            tokens[tokenIndex][tokenLength] = '\0';
-            tokenIndex++;
-            tokenStart = i + 1;
+            free(tokens);
+            return NULL;
         }
+        start = end + 1;
     }
-
+    *numTokens = count;
     return tokens;
 }
 
-char* stringJoin(char **strings, int numStrings, const char *delimiter) 
+char *stringJoin(char **strings, int numStrings, const char *delimiter)
 {
-    int delimiterLength = stringLength(delimiter);
-    int totalLength = 0;
-
-    for (int i = 0; i < numStrings; i++) 
+    if (!strings || numStrings < 0)
     {
-        totalLength += stringLength(strings[i]);
-        if (i < numStrings - 1) 
+        return NULL;
+    }
+    const char *separator = delimiter ? delimiter : "";
+    size_t separatorLength = strlen(separator);
+    size_t total = 0;
+    for (int i = 0; i < numStrings; i++)
+    {
+        total += (strings[i] ? strlen(strings[i]) : 0) + (i > 0 ? separatorLength : 0);
+    }
+    char *joined = allocString(total);
+    if (!joined)
+    {
+        return NULL;
+    }
+    char *out = joined;
+    for (int i = 0; i < numStrings; i++)
+    {
+        if (i > 0)
         {
-            totalLength += delimiterLength;
+            memcpy(out, separator, separatorLength);
+            out += separatorLength;
+        }
+        if (strings[i])
+        {
+            size_t length = strlen(strings[i]);
+            memcpy(out, strings[i], length);
+            out += length;
         }
     }
-
-    char *joined = (char*)malloc(totalLength + 1);
-    int index = 0;
-
-    for (int i = 0; i < numStrings; i++) 
-    {
-        int currentLength = stringLength(strings[i]);
-        stringCopy(joined + index, strings[i]);
-        index += currentLength;
-        if (i < numStrings - 1) 
-        {
-            stringCopy(joined + index, delimiter);
-            index += delimiterLength;
-        }
-    }
-
-    joined[totalLength] = '\0';
     return joined;
 }
 
-char* stringPaddingLeft(const char *str, char paddingChar, int totalLength) 
+char *stringPaddingLeft(const char *str, char paddingChar, int totalLength)
 {
-    int length = stringLength(str);
-    if (length >= totalLength) 
-    {
-        return stringCopy((char*)malloc(length + 1), str);
-    }
-
-    char *padded = (char*)malloc(totalLength + 1);
-    int padding = totalLength - length;
-
-    for (int i = 0; i < padding; i++) 
-    {
-        padded[i] = paddingChar;
-    }
-
-    stringCopy(padded + padding, str);
-    return padded;
+    return pad(str, totalLength, paddingChar, ALIGN_RIGHT);
 }
 
-char* stringPaddingRight(const char *str, char paddingChar, int totalLength) 
+char *stringPaddingRight(const char *str, char paddingChar, int totalLength)
 {
-    int length = stringLength(str);
-    if (length >= totalLength) 
-    {
-        return stringCopy((char*)malloc(length + 1), str);
-    }
-
-    char *padded = (char*)malloc(totalLength + 1);
-    stringCopy(padded, str);
-
-    for (int i = length; i < totalLength; i++) 
-    {
-        padded[i] = paddingChar;
-    }
-
-    padded[totalLength] = '\0';
-    return padded;
+    return pad(str, totalLength, paddingChar, ALIGN_LEFT);
 }
 
-char* stringTrimLeft(const char *str) 
+char *stringCenter(const char *str, int width, char fillChar)
 {
-    if (str == NULL) {
-        return NULL;
-    }
-
-    // Find the index of the first non-whitespace character
-    int startIndex = 0;
-    while (str[startIndex] != '\0' && isWhiteSpace(str[startIndex])) 
-    {
-        startIndex++;
-    }
-
-    // Calculate the length of the new string
-    int newLength = stringLength(str) - startIndex;
-
-    // Allocate memory for the new string
-    char *trimmed = (char*)malloc(newLength + 1);
-
-    // Copy the characters after the whitespace to the new string
-    stringCopy(trimmed, str + startIndex);
-
-    return trimmed;
+    return pad(str, width, fillChar, ALIGN_CENTER);
 }
 
-char* stringTrimRight(const char *str) 
+char *stringLjust(const char *str, int width, char fillChar)
 {
-    if (str == NULL) 
+    return pad(str, width, fillChar, ALIGN_LEFT);
+}
+
+char *stringRjust(const char *str, int width, char fillChar)
+{
+    return pad(str, width, fillChar, ALIGN_RIGHT);
+}
+
+char *stringSwapCase(const char *str)
+{
+    return stringMap(str, swapCase);
+}
+
+char *stringTitleCase(const char *str)
+{
+    char *result = copyOf(str);
+    bool atWordStart = true;
+    for (char *c = result; c && *c; c++)
+    {
+        if (isLetter(*c))
+        {
+            *c = atWordStart ? toUpperCase(*c) : toLowerCase(*c);
+            atWordStart = false;
+        }
+        else if (isTitleBoundary(*c))
+        {
+            atWordStart = true;
+        }
+    }
+    return result;
+}
+
+char *stringCommonPrefix(const char *str1, const char *str2)
+{
+    if (!str1 || !str2)
     {
         return NULL;
     }
-
-    int length = stringLength(str);
-
-    // Find the index of the last non-whitespace character
-    int endIndex = length - 1;
-    while (endIndex >= 0 && isWhiteSpace(str[endIndex])) 
-    {
-        endIndex--;
-    }
-
-    // Calculate the length of the new string
-    int newLength = endIndex + 1;
-
-    // Allocate memory for the new string
-    char *trimmed = (char*)malloc(newLength + 1);
-
-    // Copy characters up to the last non-whitespace character
-    for (int i = 0; i < newLength; i++) 
-    {
-        trimmed[i] = str[i];
-    }
-    trimmed[newLength] = '\0';
-
-    return trimmed;
-}
-
-char* stringSwapCase(const char *str) 
-{
-    int length = stringLength(str);
-    char *result = (char *)malloc(length + 1);
-
-    for (int i = 0; i < length; i++) 
-    {
-        if (isUpperCase(str[i])) 
-        {
-            result[i] = toLowerCase(str[i]);
-        } 
-        else if (isLowerCase(str[i])) 
-        {
-            result[i] = toUpperCase(str[i]);
-        } 
-        else 
-        {
-            result[i] = str[i];
-        }
-    }
-    result[length] = '\0';
-    return result;
-}
-
-char* stringTitleCase(const char *str) 
-{
-    int length = stringLength(str);
-    char *result = (char *)malloc(length + 1);
-    bool newWord = true;
-
-    for (int i = 0; i < length; i++) 
-    {
-        // Only letters that are at the beginning of a word are capitalized
-        if (newWord && isLetter(str[i])) 
-        {
-            result[i] = toUpperCase(str[i]);
-            newWord = false;
-        } 
-        else if (isLetter(str[i])) 
-        {
-            result[i] = toLowerCase(str[i]);
-        } 
-        else 
-        {
-            result[i] = str[i];
-            if (str[i] == ' ' || str[i] == '.' || str[i] == '!' || str[i] == '?') 
-            {
-                newWord = true;
-            }
-        }
-    }
-    result[length] = '\0';
-    return result;
-}
-
-char* stringReplaceAll(const char *str, const char *oldSubStr, const char *newSubStr) 
-{
-    int i, count = 0;
-    int newSubStrLength = stringLength(newSubStr);
-    int oldSubStrLength = stringLength(oldSubStr);
-    
-    // Counting the number of times oldSubStr occurs in the str
-    for (i = 0; str[i] != '\0'; i++) 
-    {
-        if (startsWithSubString(&str[i], oldSubStr)) 
-        {
-            count++;
-            // Jumping to index after the old substring
-            i += oldSubStrLength - 1;
-        }
-    }
-    
-    // Making new string of necessary length
-    char *result = (char *)malloc(i + count * (newSubStrLength - oldSubStrLength) + 1);
-
-    i = 0;
-    while (*str) 
-    {
-        // Compare substring with oldSubStr
-        if (startsWithSubString(str, oldSubStr)) 
-        {
-            stringCopy(&result[i], newSubStr);
-            i += newSubStrLength;
-            str += oldSubStrLength;
-        } 
-        else 
-        {
-            result[i++] = *str++;
-        }
-    }
-
-    result[i] = '\0';
-    return result;
-}
-
-char* stringCommonPrefix(const char *str1, const char *str2) 
-{
-    int length = 0;
-    
-    // Find the length of the common prefix
-    while (str1[length] && str2[length] && str1[length] == str2[length]) 
+    size_t length = 0;
+    while (str1[length] && str1[length] == str2[length])
     {
         length++;
     }
-    
-    // Create the result string
-    char *commonPrefix = (char *)malloc(length + 1);
-    for (int i = 0; i < length; i++) 
-    {
-        commonPrefix[i] = str1[i];
-    }
-    commonPrefix[length] = '\0';
-    
-    return commonPrefix;
+    return copyRange(str1, length);
 }
 
-char* stringCommonSuffix(const char *str1, const char *str2) 
+char *stringCommonSuffix(const char *str1, const char *str2)
 {
-    int length1 = stringLength(str1);
-    int length2 = stringLength(str2);
-    int commonLength = 0;
-    
-    // Find the length of the common suffix
-    while (commonLength < length1 && commonLength < length2 &&
-           str1[length1 - commonLength - 1] == str2[length2 - commonLength - 1]) 
-    {
-        commonLength++;
-    }
-    
-    // Create the result string
-    char *commonSuffix = (char *)malloc(commonLength + 1);
-    for (int i = 0; i < commonLength; i++) 
-    {
-        commonSuffix[i] = str1[length1 - commonLength + i];
-    }
-    commonSuffix[commonLength] = '\0';
-    
-    return commonSuffix;
-}
-
-bool stringContains(const char *str, const char *subStr) 
-{
-    while (*str) 
-    {
-        const char *a = str;
-        const char *b = subStr;
-        while (*a && *b && (*a == *b)) 
-        {
-            a++;
-            b++;
-        }
-        if (!*b) 
-        {
-            return true;
-        }
-        str++;
-    }
-    return false;
-}
-
-char* stringToBinary(const char *str) 
-{
-    if (str == NULL) 
+    if (!str1 || !str2)
     {
         return NULL;
     }
-
-    int length = stringLength(str);
-    char *binaryStr = (char *)malloc(8 * length + 1); // 8 bits per character
-    binaryStr[8 * length] = '\0'; // Null-terminator
-
-    for (int i = 0; i < length; i++) 
+    size_t length1 = strlen(str1);
+    size_t length2 = strlen(str2);
+    size_t common = 0;
+    while (common < length1 && common < length2 && str1[length1 - 1 - common] == str2[length2 - 1 - common])
     {
-        char c = str[i];
-        for (int j = 7; j >= 0; j--) 
-        {
-            binaryStr[i * 8 + (7 - j)] = (c & (1 << j)) ? '1' : '0';
-        }
+        common++;
     }
-    return binaryStr;
+    return copyRange(str1 + length1 - common, common);
 }
 
-char* stringFromBinary(const char *binaryStr) 
+char *stringToBinary(const char *str)
 {
-    if (binaryStr == NULL || strlen(binaryStr) % 8 != 0) 
+    if (!str)
     {
         return NULL;
     }
-
-    int length = strlen(binaryStr);
-    char *str = (char *)malloc(length / 8 + 1);
-    str[length / 8] = '\0'; // Null-terminator
-
-    for (int i = 0; i < length; i += 8) 
+    size_t length = strlen(str);
+    char *binary = allocString(length * 8);
+    for (size_t i = 0; binary && i < length; i++)
     {
-        char c = 0;
-        for (int j = 0; j < 8; j++) 
+        unsigned char c = (unsigned char)str[i];
+        for (int bit = 0; bit < 8; bit++)
         {
-            c = c << 1;
-            c |= (binaryStr[i + j] == '1') ? 1 : 0;
+            binary[i * 8 + (size_t)bit] = (c & (0x80 >> bit)) ? '1' : '0';
         }
-        str[i / 8] = c;
+    }
+    return binary;
+}
+
+char *stringFromBinary(const char *binaryStr)
+{
+    if (!binaryStr || strlen(binaryStr) % 8 != 0 || binaryStr[strspn(binaryStr, "01")] != '\0')
+    {
+        return NULL;
+    }
+    size_t length = strlen(binaryStr) / 8;
+    char *str = allocString(length);
+    for (size_t i = 0; str && i < length; i++)
+    {
+        unsigned char c = 0;
+        for (int bit = 0; bit < 8; bit++)
+        {
+            c = (unsigned char)((c << 1) | (binaryStr[i * 8 + (size_t)bit] == '1'));
+        }
+        str[i] = (char)c;
     }
     return str;
 }
 
-char* stringRandom(int length) 
+char *stringRandom(int length)
 {
-    if (length <= 0) 
+    if (length < 0)
     {
         return NULL;
     }
-
-    char *str = (char *)malloc(length + 1);
-    str[length] = '\0'; // Null-terminator
-
-    srand(time(NULL)); // Seed the random number generator
-    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-    for (int i = 0; i < length; i++) 
+    static const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    seedRandomOnce();
+    char *str = allocString((size_t)length);
+    for (int i = 0; str && i < length; i++)
     {
-        int index = rand() % (sizeof(charset) - 1);
-        str[i] = charset[index];
+        str[i] = charset[rand() % (int)(sizeof charset - 1)];
     }
     return str;
 }
 
-char* stringCenter(const char *str, int width, char fillChar) 
+char *stringShuffle(const char *str)
 {
-    if (!str || width < 0) 
+    char *shuffled = copyOf(str);
+    if (!shuffled)
     {
         return NULL;
     }
-
-    int strLen = 0;
-    while (str[strLen]) 
+    seedRandomOnce();
+    for (size_t i = strlen(shuffled); i > 1; i--)
     {
-        strLen++;
-    }
-
-    int padding = width - strLen;
-    if (padding <= 0) 
-    {
-        char *result = (char *)malloc(strLen + 1);
-        for (int i = 0; i < strLen; i++) {
-            result[i] = str[i];
-        }
-        result[strLen] = '\0';
-        return result;
-    }
-
-    int leftPadding = padding / 2;
-
-    char *result = (char *)malloc(width + 1);
-    for (int i = 0; i < width; i++) {
-        result[i] = (i < leftPadding || i >= leftPadding + strLen) ? fillChar : str[i - leftPadding];
-    }
-    result[width] = '\0';
-
-    return result;
-}
-
-char* stringLjust(const char *str, int width, char fillChar)
-{
-    if (!str || width < 0) 
-    {
-        return NULL;
-    }
-
-    int strLen = 0;
-    while (str[strLen]) 
-    {
-        strLen++;
-    }
-
-    char *result = (char *)malloc(width + 1);
-    for (int i = 0; i < width; i++) 
-    {
-        result[i] = (i < strLen) ? str[i] : fillChar;
-    }
-    result[width] = '\0';
-
-    return result;
-}
-
-char* stringRjust(const char *str, int width, char fillChar) 
-{
-    if (!str || width < 0) 
-    {
-        return NULL;
-    }
-
-    int strLen = 0;
-    while (str[strLen]) 
-    {
-        strLen++;
-    }
-
-    int padding = width - strLen;
-
-    char *result = (char *)malloc(width + 1);
-    for (int i = 0; i < width; i++) 
-    {
-        result[i] = (i < padding) ? fillChar : str[i - padding];
-    }
-    result[width] = '\0';
-
-    return result;
-}
-
-char* stringShuffle(const char *str) 
-{
-    if (str == NULL) 
-    {
-        return NULL;
-    }
-    
-    int strLen = stringLength(str);
-    
-    // Copy the original string so that we don't modify it
-    char *shuffled = (char *)malloc(strLen + 1);
-    stringCopy(shuffled, str);
-    
-    // Seed the random number generator
-    srand(time(NULL));
-    
-    // Fisher-Yates shuffle algorithm
-    for (int i = strLen - 1; i > 0; i--) 
-    {
-        int j = rand() % (i + 1);
-        char temp = shuffled[i];
-        shuffled[i] = shuffled[j];
+        size_t j = (size_t)rand() % i;
+        char temp = shuffled[i - 1];
+        shuffled[i - 1] = shuffled[j];
         shuffled[j] = temp;
-        
     }
-    
     return shuffled;
 }
 
-char* stringToHex(const char *str) 
+char *stringToHex(const char *str)
 {
-    if (!str) 
+    if (!str)
     {
         return NULL;
     }
-
-    int length = stringLength(str);
-    char *hexString = malloc(length * 2 + 1);
-
-    for (int i = 0; i < length; i++) 
+    size_t length = strlen(str);
+    char *hex = allocString(length * 2);
+    for (size_t i = 0; hex && i < length; i++)
     {
-        sprintf(hexString + i * 2, "%02x", (unsigned char)str[i]);
+        unsigned char c = (unsigned char)str[i];
+        hex[i * 2] = hexDigits[c >> 4];
+        hex[i * 2 + 1] = hexDigits[c & 0x0F];
     }
-
-    hexString[length * 2] = '\0';
-    return hexString;
+    return hex;
 }
 
-char* stringToOct(const char *str) 
+char *stringToOct(const char *str)
 {
-    if (!str) 
+    if (!str)
     {
         return NULL;
     }
-
-    int length = stringLength(str);
-    char *octString = malloc(length * 4 + 1);
-    char buffer[4];
-
-    octString[0] = '\0';
-
-    for (int i = 0; i < length; i++) 
+    size_t length = strlen(str);
+    char *oct = allocString(length * 3);
+    for (size_t i = 0; oct && i < length; i++)
     {
-        sprintf(buffer, "%03o", (unsigned char)str[i]);
-        strcat(octString, buffer);
+        unsigned char c = (unsigned char)str[i];
+        oct[i * 3] = (char)('0' + (c >> 6));
+        oct[i * 3 + 1] = (char)('0' + ((c >> 3) & 7));
+        oct[i * 3 + 2] = (char)('0' + (c & 7));
     }
-
-    return octString;
+    return oct;
 }
 
-char* stringHexToBinary(const char *hexStr)
+char *stringHexToBinary(const char *hexStr)
 {
-    if (!hexStr) 
+    return digitsToBinary(hexStr, 16);
+}
+
+char *stringOctToBinary(const char *octStr)
+{
+    return digitsToBinary(octStr, 8);
+}
+
+char *stringMap(const char *str, char (*function)(char))
+{
+    if (!str || !function)
     {
         return NULL;
     }
-
-    const char *hexToBin[] = {"0000", "0001", "0010", "0011", "0100", "0101", "0110", "0111",
-                              "1000", "1001", "1010", "1011", "1100", "1101", "1110", "1111"};
-    
-    int length = strlen(hexStr);
-    char *binary = (char *) malloc(length * 4 + 1);
-    binary[0] = '\0';
-    
-    for (int i = 0; i < length; i++) 
+    size_t length = strlen(str);
+    char *mapped = allocString(length);
+    for (size_t i = 0; mapped && i < length; i++)
     {
-        int value;
-        if ('0' <= hexStr[i] && hexStr[i] <= '9') 
-        {
-            value = hexStr[i] - '0';
-        } else if ('a' <= hexStr[i] && hexStr[i] <= 'f') 
-        {
-            value = hexStr[i] - 'a' + 10;
-        } else if ('A' <= hexStr[i] && hexStr[i] <= 'F') 
-        {
-            value = hexStr[i] - 'A' + 10;
-        } 
-        else 
-        {
-            free(binary);
-            return NULL; // Invalid character in hex string
-        }
-        strcat(binary, hexToBin[value]);
+        mapped[i] = function(str[i]);
     }
-    
-    return binary;
+    return mapped;
 }
 
-char* stringOctToBinary(const char *octStr) 
+char *stringFilter(const char *str, bool (*function)(char))
 {
-    if (!octStr) 
+    if (!str || !function)
     {
         return NULL;
     }
-
-    const char *octToBin[] = {"000", "001", "010", "011", "100", "101", "110", "111"};
-    
-    int length = strlen(octStr);
-    char *binary = (char *) malloc(length * 3 + 1);
-    binary[0] = '\0';
-    
-    for (int i = 0; i < length; i++) 
-    {
-        int value;
-        if ('0' <= octStr[i] && octStr[i] <= '7') 
-        {
-            value = octStr[i] - '0';
-        } 
-        else 
-        {
-            free(binary);
-            return NULL; // Invalid character in octal string
-        }
-        strcat(binary, octToBin[value]);
-    }
-    
-    return binary;
-}
-
-char* stringMap(const char *str, char (*function)(char)) 
-{
-    if (!str || !function) 
+    char *filtered = allocString(strlen(str));
+    if (!filtered)
     {
         return NULL;
     }
-
-    int len = stringLength(str);
-    char *new_str = (char *) malloc(len + 1);
-    
-    for (int i = 0; i < len; i++) 
+    size_t length = 0;
+    for (; *str; str++)
     {
-        new_str[i] = function(str[i]);
+        if (function(*str))
+        {
+            filtered[length++] = *str;
+        }
     }
-    
-    new_str[len] = '\0';
-    return new_str;
+    filtered[length] = '\0';
+    return filtered;
 }
 
-char* stringFilter(const char *str, bool (*condition)(char)) 
+char *stringExpandTabs(const char *str, int tabSize)
 {
-    if (!str || !condition) 
+    if (!str || tabSize < 0)
     {
         return NULL;
     }
-    
-    int len = stringLength(str);
-    char *new_str = (char *) malloc(len + 1);
-    
-    int j = 0;
-    for (int i = 0; i < len; i++) 
+    char *expanded = allocString(expandTabsInto(str, (size_t)tabSize, NULL));
+    if (expanded)
     {
-        if (condition(str[i])) 
-        {
-            new_str[j++] = str[i];
-        }
+        expandTabsInto(str, (size_t)tabSize, expanded);
     }
-    
-    new_str[j] = '\0';
-    return new_str;
+    return expanded;
 }
 
-char* stringExpandTabs(const char *str, int tabSize) 
+char *stringSort(const char *str)
 {
-    if (str == NULL || tabSize < 0) 
+    if (!str)
     {
         return NULL;
     }
-
-    int expandedLength = 0;
-    for (int i = 0; str[i] != '\0'; i++) 
+    size_t counts[UCHAR_MAX + 1] = {0};
+    size_t length = 0;
+    for (const unsigned char *c = (const unsigned char *)str; *c; c++, length++)
     {
-        if (str[i] == '\t') {
-            expandedLength += tabSize;
-        } else {
-            expandedLength++;
-        }
+        counts[*c]++;
     }
-
-    char *expandedStr = (char*)malloc(expandedLength + 1);
-    int index = 0;
-
-    for (int i = 0; str[i] != '\0'; i++) 
+    char *sorted = allocString(length);
+    size_t index = 0;
+    for (int c = 1; sorted && c <= UCHAR_MAX; c++)
     {
-        if (str[i] == '\t') {
-            for (int j = 0; j < tabSize; j++) 
-            {
-                expandedStr[index++] = ' ';
-            }
-        } 
-        else 
-        {
-            expandedStr[index++] = str[i];
-        }
+        memset(sorted + index, c, counts[c]);
+        index += counts[c];
     }
-    expandedStr[index] = '\0';
-    
-    return expandedStr;
+    return sorted;
 }
 
-void stringEncodeB64(const char *input, char *output) 
+void stringEncodeB64(const char *input, char *output)
 {
-    int i, j, padding;
-    uint32_t len = strlen(input);
-
-    // Determine padding size
-    padding = len % 3 == 0 ? 0 : 3 - len % 3;
-
-    for (i = 0, j = 0; i < len; i += 3, j += 4) {
-        int a = input[i];
-        int b = i + 1 < len ? input[i + 1] : 0;
-        int c = i + 2 < len ? input[i + 2] : 0;
-
-        output[j] = base64_table[a >> 2];
-        output[j + 1] = base64_table[((a & 3) << 4) | (b >> 4)];
-        output[j + 2] = i + 1 < len ? base64_table[((b & 15) << 2) | (c >> 6)] : '=';
-        output[j + 3] = i + 2 < len ? base64_table[c & 63] : '=';
+    if (!input || !output)
+    {
+        return;
     }
-
-    output[(len + padding) / 3 * 4] = '\0';
+    const unsigned char *bytes = (const unsigned char *)input;
+    size_t length = strlen(input);
+    size_t out = 0;
+    for (size_t i = 0; i < length; i += 3)
+    {
+        unsigned long triple = (unsigned long)bytes[i] << 16;
+        triple |= i + 1 < length ? (unsigned long)bytes[i + 1] << 8 : 0;
+        triple |= i + 2 < length ? (unsigned long)bytes[i + 2] : 0;
+        output[out++] = base64Table[(triple >> 18) & 63];
+        output[out++] = base64Table[(triple >> 12) & 63];
+        output[out++] = i + 1 < length ? base64Table[(triple >> 6) & 63] : '=';
+        output[out++] = i + 2 < length ? base64Table[triple & 63] : '=';
+    }
+    output[out] = '\0';
 }
 
-void stringDecodeB64(const char *encoded, char *decoded_string) 
+void stringDecodeB64(const char *encoded, char *decoded_string)
 {
-    uint32_t len_str = strlen(encoded);
-    uint32_t k = 0;
-    uint32_t num = 0;
-    int count_bits = 0;
-
-    for (uint32_t i = 0; i < len_str; i += 4) 
+    if (!encoded || !decoded_string)
     {
-        num = 0, count_bits = 0;
-        for (int j = 0; j < 4; j++) {
-            // Make space for 6 bits.
-            if (encoded[i + j] != '=') 
-            {
-                num = num << 6;
-                count_bits += 6;
-            }
-
-            if (encoded[i + j] >= 'A' && encoded[i + j] <= 'Z')
-                num = num | (encoded[i + j] - 'A');
-
-            else if (encoded[i + j] >= 'a' && encoded[i + j] <= 'z')
-                num = num | (encoded[i + j] - 'a' + 26);
-
-            else if (encoded[i + j] >= '0' && encoded[i + j] <= '9')
-                num = num | (encoded[i + j] - '0' + 52);
-
-            else if (encoded[i + j] == '+')
-                num = num | 62;
-
-            else if (encoded[i + j] == '/')
-                num = num | 63;
-
-            else 
-            {
-                num = num >> 2;
-                count_bits -= 2;
-            }
-        }
-
-        while (count_bits != 0) 
+        return;
+    }
+    unsigned long buffer = 0;
+    int bits = 0;
+    size_t length = 0;
+    for (; *encoded && *encoded != '='; encoded++)
+    {
+        int value = base64Value(*encoded);
+        if (value < 0)
         {
-            count_bits -= 8;
-            decoded_string[k++] = (num >> count_bits) & 255;
+            continue;
         }
-    }
-
-    decoded_string[k] = '\0';
-}
-
-char* stringSort(const char *str) 
-{
-    if (str == NULL) 
-    {
-        return NULL;
-    }
-    
-    int length = stringLength(str);
-    
-    // Allocate memory for the sorted string
-    char *sortedStr = (char*) malloc(length + 1);
-    
-    // Copy the original string to sortedStr
-    stringCopy(sortedStr, str);
-    
-    // Sort the characters in sortedStr using Bubble Sort
-    for (int i = 0; i < length - 1; i++) 
-    {
-        for (int j = 0; j < length - i - 1; j++) 
+        buffer = ((buffer << 6) | (unsigned long)value) & 0xFFFFFF;
+        bits += 6;
+        if (bits >= 8)
         {
-            if (sortedStr[j] > sortedStr[j + 1]) 
-            {
-                // Swap sortedStr[j] and sortedStr[j+1]
-                char temp = sortedStr[j];
-                sortedStr[j] = sortedStr[j + 1];
-                sortedStr[j + 1] = temp;
-            }
+            bits -= 8;
+            decoded_string[length++] = (char)((buffer >> bits) & 0xFF);
         }
     }
-    
-    // Null-terminate the sorted string
-    sortedStr[length] = '\0';
-    
-    return sortedStr;
+    decoded_string[length] = '\0';
 }
